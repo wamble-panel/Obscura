@@ -20,12 +20,13 @@ import { PERMISSIONS } from '@/lib/permissions'
 import { MONTHS } from '@/lib/i18n'
 import { egp, formatDateShort, toCsv, todayKey, usd } from '@/lib/format'
 import { deleteLedgerEntry, saveLedgerEntry } from '@/server/finance'
+import {
+  categoriesFor,
+  categoryLabel,
+  categoryTint,
+  groupedCategories,
+} from '@/lib/categories'
 import type { FinanceSummary, LedgerEntry, LedgerType, StudioSession } from '@/lib/types'
-
-const CATEGORIES: Record<LedgerType, string[]> = {
-  in: ['Session', 'Rental', 'Other'],
-  out: ['Salary', 'Rent', 'Utilities', 'Gear', 'Other'],
-}
 
 const METHODS = ['cash', 'instapay', 'bank', 'wallet']
 
@@ -140,6 +141,20 @@ export function FinanceView({
   const expenses = Number(summary.expenses)
   const net = income - expenses
 
+  /** Expenses grouped by category, biggest first. */
+  const spendByCategory = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const e of entries) {
+      if (e.type !== 'out') continue
+      totals.set(e.category, (totals.get(e.category) ?? 0) + Number(e.amount))
+    }
+    const list = [...totals.entries()]
+      .map(([key, amount]) => ({ key, amount }))
+      .sort((a, b) => b.amount - a.amount)
+    const max = Math.max(1, ...list.map((l) => l.amount))
+    return { list, max, total: list.reduce((s, l) => s + l.amount, 0) }
+  }, [entries])
+
   const exportCsv = () => {
     const csv = toCsv(
       rows.map((r) => ({
@@ -232,17 +247,21 @@ export function FinanceView({
                   key={r.id}
                   className="group flex items-center gap-3 rounded-[13px] px-2.5 py-2.5 transition-colors hover:bg-ink/4"
                 >
+                  {/* Tinted by category group, so a month of entries can be
+                      scanned without reading every label. */}
                   <span
-                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
-                      r.type === 'in' ? 'bg-ink/8 text-ink' : 'bg-clay/10 text-clay'
-                    }`}
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      background: `${categoryTint(r.category)}1A`,
+                      color: categoryTint(r.category),
+                    }}
                   >
                     <Icon name={r.type === 'in' ? 'arrowDown' : 'arrowUp'} size={15} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px] font-bold">{r.label}</div>
                     <div className="truncate text-[11.5px] font-semibold text-ink/45">
-                      {t(`finance.cat.${r.category}`, r.category)} ·{' '}
+                      {categoryLabel(r.category, lang)} ·{' '}
                       <span className="ob-ltr">{formatDateShort(r.date, lang)}</span>
                     </div>
                   </div>
@@ -321,6 +340,40 @@ export function FinanceView({
               {usd(net, rate)}
             </div>
           </div>
+
+          {spendByCategory.list.length > 0 && (
+            <div className="mt-5 border-t border-ink/8 pt-4">
+              <div className="ob-label mb-3">{t('finance.whereItWent')}</div>
+              <div className="flex flex-col gap-2.5">
+                {spendByCategory.list.slice(0, 8).map((row) => (
+                  <div key={row.key}>
+                    <div className="mb-1 flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[12px] font-semibold text-ink/70">
+                        {categoryLabel(row.key, lang)}
+                      </span>
+                      <span className="ob-ltr flex-shrink-0 text-[12px] font-extrabold">
+                        {egp(row.amount)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-ink/8">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(row.amount / spendByCategory.max) * 100}%`,
+                          background: categoryTint(row.key),
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {spendByCategory.list.length > 8 && (
+                <p className="mt-2.5 text-[11px] font-semibold text-ink/40">
+                  +{spendByCategory.list.length - 8} {t('finance.moreCategories')}
+                </p>
+              )}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -363,7 +416,7 @@ export function FinanceView({
                 type="button"
                 onClick={() => {
                   setType(v)
-                  setCategory(CATEGORIES[v][0])
+                  setCategory(categoriesFor(v)[0].key)
                 }}
                 data-on={type === v}
                 className="ob-chip h-11 flex-1 justify-center text-[13px]"
@@ -374,19 +427,22 @@ export function FinanceView({
           </div>
 
           <Field label={t('common.category')}>
-            <div className="flex flex-wrap gap-1.5">
-              {CATEGORIES[type].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  data-on={category === c}
-                  className="ob-chip"
-                >
-                  {t(`finance.cat.${c}`, c)}
-                </button>
+            {/* Grouped, so twenty-odd categories stay findable. */}
+            <select
+              className="ob-input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {groupedCategories(type, lang).map((group) => (
+                <optgroup key={group.group} label={group.label}>
+                  {group.items.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {lang === 'ar' ? c.ar : c.en}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
-            </div>
+            </select>
           </Field>
 
           <Field label={t('common.notes')}>
