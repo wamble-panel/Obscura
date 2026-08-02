@@ -979,6 +979,145 @@ drop trigger if exists payments_ledger on public.payments;
 create trigger payments_ledger after insert on public.payments
   for each row execute function public.payment_to_ledger();
 
+-- ---- shareable invoice links ----------------------------------------------
+-- A client should be able to open their invoice without an Obscura account, so
+-- each invoice can carry an unguessable token. Access is granted through one
+-- SECURITY DEFINER function rather than by opening the tables to `anon`, which
+-- keeps the blast radius to exactly the fields listed below.
+alter table public.invoices add column if not exists share_token text unique;
+alter table public.invoices add column if not exists share_enabled boolean not null default false;
+alter table public.invoices add column if not exists share_expires_at timestamptz;
+alter table public.invoices add column if not exists share_views int not null default 0;
+alter table public.invoices add column if not exists share_last_viewed_at timestamptz;
+
+create index if not exists invoices_share_token_idx on public.invoices(share_token);
+
+-- 32 hex characters — far beyond guessing, and safe in a URL or a WhatsApp message.
+create or replace function public.enable_invoice_share(
+  p_invoice uuid,
+  p_expires_at timestamptz default null,
+  p_regenerate boolean default false
+) returns text
+language plpgsql security definer set search_path = public as $$
+declare v_token text;
+begin
+  if not public.has_perm('invoices.edit') and not public.has_perm('invoices.create') then
+    raise exception 'You do not have permission to share invoices.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select share_token into v_token from public.invoices where id = p_invoice;
+  if v_token is null or p_regenerate then
+    v_token := encode(gen_random_bytes(16), 'hex');
+  end if;
+
+  update public.invoices
+     set share_token = v_token,
+         share_enabled = true,
+         share_expires_at = p_expires_at,
+         share_views = case when p_regenerate then 0 else share_views end
+   where id = p_invoice;
+
+  return v_token;
+end $$;
+
+create or replace function public.disable_invoice_share(p_invoice uuid)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.has_perm('invoices.edit') then
+    raise exception 'You do not have permission to do that.'
+      using errcode = 'insufficient_privilege';
+  end if;
+  update public.invoices
+     set share_enabled = false, share_token = null
+   where id = p_invoice;
+end $$;
+
+/**
+ * The only thing an anonymous visitor can call. Returns the invoice, its lines
+ * and its payments as one JSON document — and nothing else about the studio.
+ * Deliberately omitted: internal notes on payments, created_by, client_id, and
+ * every other invoice belonging to that client.
+ */
+create or replace function public.invoice_by_share_token(p_token text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  inv public.invoices;
+  result jsonb;
+  studio jsonb;
+begin
+  if p_token is null or length(p_token) < 16 then
+    return null;
+  end if;
+
+  select * into inv from public.invoices
+   where share_token = p_token and share_enabled;
+
+  if inv is null then return null; end if;
+  if inv.share_expires_at is not null and inv.share_expires_at < now() then
+    return jsonb_build_object('expired', true);
+  end if;
+
+  select value into studio from public.app_settings where key = 'studio';
+
+  -- Note it was opened. Only the first view in an hour reaches the audit log,
+  -- so a client refreshing the page cannot flood it.
+  if inv.share_last_viewed_at is null or inv.share_last_viewed_at < now() - interval '1 hour' then
+    insert into public.audit_log(action, entity, entity_id, entity_label, summary, severity)
+    values ('invoice.viewed', 'invoices', inv.id::text, inv.number,
+            'Client opened the shared invoice ' || inv.number, 'info');
+  end if;
+
+  update public.invoices
+     set share_views = share_views + 1, share_last_viewed_at = now()
+   where id = inv.id;
+
+  select jsonb_build_object(
+    'invoice', jsonb_build_object(
+      'number', inv.number,
+      'client_name', inv.client_name,
+      'client_company', inv.client_company,
+      'client_address', inv.client_address,
+      'issue_date', inv.issue_date,
+      'due_date', inv.due_date,
+      'subtotal', inv.subtotal,
+      'discount', inv.discount,
+      'tax_rate', inv.tax_rate,
+      'tax_amount', inv.tax_amount,
+      'total', inv.total,
+      'status', inv.status,
+      'notes', inv.notes,
+      'terms', inv.terms
+    ),
+    'items', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'description', it.description,
+               'qty', it.qty,
+               'unit_price', it.unit_price,
+               'amount', it.amount) order by it.sort)
+        from public.invoice_items it where it.invoice_id = inv.id), '[]'::jsonb),
+    'payments', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'amount', p.amount,
+               'method', p.method,
+               'paid_at', p.paid_at) order by p.paid_at)
+        from public.payments p where p.invoice_id = inv.id), '[]'::jsonb),
+    'paid_amount', coalesce((
+      select sum(amount) from public.payments where invoice_id = inv.id), 0),
+    'studio', jsonb_build_object(
+      'name', coalesce(studio->>'name', 'Obscura Studio'),
+      'branch', coalesce(studio->>'branch', ''),
+      'usd_rate', coalesce((studio->>'usd_rate')::numeric, 48)
+    )
+  ) into result;
+
+  return result;
+end $$;
+
+grant execute on function public.invoice_by_share_token(text) to anon, authenticated;
+
 -- What a client owes, and what they have paid.
 create or replace view public.v_invoice_balance
 with (security_invoker = on) as
@@ -1116,8 +1255,12 @@ end $$;
 
 -- ============================================================================
 -- 8. NEW USER HANDLING
---    The first person to sign up becomes the admin and is active immediately.
---    Everyone after that lands as an inactive "viewer" until an admin approves.
+--    There is no registration page: accounts are created by an admin, and public
+--    sign-up should be turned off in Supabase. This trigger still runs for every
+--    new auth user, whoever created them.
+--
+--    The first account ever created becomes the admin and is active immediately.
+--    Anyone created after that starts inactive unless the admin said otherwise.
 -- ============================================================================
 
 create or replace function public.handle_new_user()
@@ -1474,11 +1617,47 @@ grant execute on all functions in schema public to authenticated;
 -- The daily cron runs as the service role.
 grant execute on function public.mark_overdue_rentals() to service_role;
 
+-- Postgres grants EXECUTE to PUBLIC on every new function, and Supabase turns
+-- functions in this schema into callable REST endpoints. Anything that changes
+-- data and does not check a permission itself is taken away from anonymous
+-- callers here. `invoice_by_share_token` is the one deliberate exception — that
+-- is the whole point of a shared invoice link.
+do $$
+declare fn text;
+begin
+  foreach fn in array array[
+    'public.mark_overdue_rentals()',
+    'public.log_event(text,text,text,text,text,text,text,text,jsonb)',
+    'public.recalc_invoice(uuid)',
+    'public.enable_invoice_share(uuid,timestamptz,boolean)',
+    'public.disable_invoice_share(uuid)',
+    'public.touch_presence(text,text,text,text)',
+    'public.attach_audit(regclass)',
+    'public.apply_crud_policies(text,text)'
+  ] loop
+    begin
+      execute format('revoke execute on function %s from public, anon', fn);
+    exception when undefined_function then null;
+    end;
+  end loop;
+end $$;
+
+-- Put back the ones signed-in staff genuinely need.
+grant execute on function public.log_event(text,text,text,text,text,text,text,text,jsonb) to authenticated;
+grant execute on function public.touch_presence(text,text,text,text) to authenticated;
+grant execute on function public.enable_invoice_share(uuid,timestamptz,boolean) to authenticated;
+grant execute on function public.disable_invoice_share(uuid) to authenticated;
+
 -- Revoke direct writes to the audit trail: it is append-only, via triggers.
 revoke insert, update, delete on public.audit_log from authenticated, anon;
 revoke insert, update, delete on public.keepalive from authenticated, anon;
 
 -- ============================================================================
--- DONE. Next: create your account in Authentication -> Users (or just sign up
--- in the app). The very first account becomes the admin automatically.
+-- DONE.
+--
+-- Next, in Supabase:
+--   1. Authentication -> Sign In / Providers -> Email: uncheck "Allow new users
+--      to sign up". Accounts are issued by an admin; the app has no signup page.
+--   2. Authentication -> Users -> Add user: create your own account and tick
+--      "Auto Confirm User". The first account created becomes the admin.
 -- ============================================================================

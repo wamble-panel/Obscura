@@ -67,8 +67,8 @@ In Vercel: **Settings → Environment Variables**. Add each one to
 ⭐ = not strictly required, but you want it:
 
 - **`SUPABASE_SERVICE_ROLE_KEY`** lets you create team accounts from inside the app
-  (Users → Invite user). Without it, people sign up on the login page and you approve
-  them instead. **Never** put this key anywhere public.
+  (Users → Invite user, or Team → Create login). Without it you can only create
+  accounts from the Supabase dashboard. **Never** put this key anywhere public.
 - **`CRON_SECRET`** stops strangers from calling the keep-alive endpoint. Vercel sends
   it automatically on scheduled runs.
 
@@ -78,27 +78,49 @@ In Vercel: **Settings → Environment Variables**. Add each one to
 If the app can't find them it shows a `/setup` page that tells you exactly what is
 missing — nothing crashes.
 
-### 5 · Create your account
+### 5 · Close the door, then make your account
 
-Open the deployed site → **Create account**.
+**There is no registration page, by design.** Nobody can create their own account —
+accounts are issued by an admin. Two things make that true:
 
-**The very first account created becomes the admin automatically**, with every
-permission, and is active immediately. Everyone who signs up after that lands in a
-pending state until you activate them from **Users & access**.
+**a. Turn off public sign-up in Supabase**
+
+> Authentication → Sign In / Providers → Email → uncheck
+> **"Allow new users to sign up"** → Save
+
+This is what actually enforces it. Removing the form only hides the door; this locks
+it, including against anyone calling the API directly.
+
+**b. Create the first admin by hand**
+
+> Authentication → Users → **Add user** → Create new user
+> - email, and a password you choose
+> - ✅ tick **Auto Confirm User** — without it you cannot sign in until you click a
+>   confirmation email, and Supabase's built-in mailer is rate limited and often
+>   lands in spam
+
+**The first account created becomes the studio admin automatically** — every
+permission, active immediately. Sign in with it and you are running the studio.
 
 ---
 
 ## Adding your team
 
-Two ways, both fine:
+Two routes to the same place, both needing `SUPABASE_SERVICE_ROLE_KEY`:
 
-**You create their account** *(needs `SUPABASE_SERVICE_ROLE_KEY`)*
-Users & access → **Invite user** → pick a role → a temporary password is generated
-for you to pass on. They can change it later from Account → Password.
+- **Users & access → Invite user** — pick a role, get a generated temporary password
+  to hand over.
+- **Team → a member's card → Create login** — creates the account *and* links it to
+  their delivery history, so their output and their login are the same person.
 
-**They sign up themselves**
-They use **Create account** on the login page, then you open Users & access and hit
-**Activate**, and set their role.
+They can change the password themselves from Account → Password.
+
+### Suspending someone
+
+Open them in Users & access → **Suspend**. It records who did it and why, drops them
+from the presence board, revokes their session tokens, and strips every permission at
+once — enforced in the database, not just hidden in the UI. **Reinstate** puts them
+back and clears the suspension.
 
 ### Roles
 
@@ -144,15 +166,53 @@ through the app; the permission is revoked at the database level.
 
 ---
 
+## Sending an invoice to a client
+
+Open the invoice → **Create client link**. That produces a private URL like
+`https://your-app.vercel.app/i/9f3c…` which you can send over WhatsApp or email.
+
+The client opens it on any device with **no account and no login**, sees the invoice
+on Obscura letterhead, and can tap **Save as PDF** (on iPhone that is the same Share
+sheet, via "Save to Files"). You can see how many times it has been opened, and the
+audit log records the first open.
+
+How it is kept safe:
+
+- The token is 16 random bytes — 32 hex characters, not guessable.
+- Anonymous visitors are granted exactly **one** database function, which returns
+  only that invoice's lines, payments and totals. No client record, no phone number,
+  no other invoice, no studio data.
+- **Withdraw** kills the link instantly. **New link** rotates it, and the old URL
+  stops working the moment you do.
+- Links can carry an expiry date; without one they stay live until withdrawn.
+
+Anyone holding the link can view that one invoice — treat it like the invoice
+itself, and withdraw it if it goes astray.
+
+---
+
 ## Installing on iPhone
 
 1. Open the site in **Safari** (it must be Safari, not Chrome).
 2. Tap the **Share** button.
 3. Choose **Add to Home Screen** → **Add**.
 
-It launches full screen with no browser chrome, respects the notch and home
-indicator, and has its own icon. Same flow works on Android via Chrome's
-"Install app". Settings → *Install on your phone* has these steps in-app.
+The app prompts you with these steps on your first visit, and Settings →
+*Install on your phone* has them too.
+
+Once installed it behaves like a real app rather than a saved page:
+
+- **Full screen**, no browser chrome or address bar
+- **Its own launch screen** with the Obscura mark at six device sizes, so it opens on
+  the brand rather than a white flash
+- **Pull down to refresh** — added because standalone iOS has no reload button, which
+  is the usual way a web app feels stuck
+- No rubber-band scroll, no text selection or magnifier when tapping around, no
+  double-tap zoom
+- Respects the notch and the home indicator
+- Home-screen shortcuts straight into Calendar, Rentals and Gear (long-press the icon)
+
+Android works the same way through Chrome's "Install app".
 
 ---
 
@@ -211,6 +271,9 @@ src/
       admin/users/    accounts, roles, per-person permissions
       admin/audit/    live activity + who is online
       settings/       rates, hours, system health
+      invoices/       billing, payments, client links
+    i/[token]/        the invoice a client opens — no account needed
+    print/            invoice + statement on letterhead, for paper or PDF
     login/  setup/  pending/  no-access/  offline/
     api/keepalive/    the cron endpoint
   components/         UI kit, shell, shared modals

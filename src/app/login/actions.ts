@@ -74,32 +74,15 @@ export async function signIn(_prev: ActionResult | null, formData: FormData): Pr
   redirect(next.startsWith('/') ? next : '/dashboard')
 }
 
-export async function signUp(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const email = String(formData.get('email') ?? '').trim().toLowerCase()
-  const password = String(formData.get('password') ?? '')
-  const fullName = String(formData.get('fullName') ?? '').trim()
-
-  if (!email || !password) return { ok: false, error: 'Enter your email and password.' }
-  if (password.length < 8) {
-    return { ok: false, error: 'Use at least 8 characters for your password.' }
-  }
-
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName || email.split('@')[0] } },
-  })
-
-  if (error) return { ok: false, error: error.message }
-
-  revalidatePath('/', 'layout')
-  return {
-    ok: true,
-    message:
-      'Account created. If this was the first account you are now the admin — sign in below. Otherwise an admin needs to approve you.',
-  }
-}
+/*
+ * There is deliberately no sign-up action.
+ *
+ * Accounts are created by an admin — from Users & access, or from a team
+ * member's card — and the very first one is created in the Supabase dashboard.
+ * Turning public sign-up off in Supabase (Authentication -> Sign In / Providers
+ * -> Email -> "Allow new users to sign up") closes the API path as well, which
+ * is what actually enforces this; removing the form only hides it.
+ */
 
 export async function requestPasswordReset(
   _prev: ActionResult | null,

@@ -21,6 +21,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { Icon } from '@/components/icons'
+import { SharePanel } from '@/components/invoices/share-panel'
 import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, egp, formatDate, todayKey } from '@/lib/format'
 import {
@@ -562,6 +563,17 @@ export function InvoicesView({
                 </div>
               )}
             </div>
+
+            {can(PERMISSIONS.invoicesEdit) && detail.status !== 'void' && (
+              <SharePanel
+                invoiceId={detail.id}
+                invoiceNumber={detail.number}
+                clientName={detail.client_name}
+                isShared={Boolean(detail.share_enabled)}
+                views={detail.share_views ?? 0}
+                total={egp(detail.total)}
+              />
+            )}
 
             <div className="mt-4 flex flex-col gap-2">
               {can(PERMISSIONS.invoicesPay) &&

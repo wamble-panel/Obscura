@@ -60,6 +60,10 @@
   0%, 100% { opacity: 0.25; transform: scale(0.96); }
   50%      { opacity: 0.6;  transform: scale(1); }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
 /* ==========================================================================
    Base
@@ -81,9 +85,33 @@
     overscroll-behavior-y: none;
   }
 
-  /* iOS standalone: never let the whole page rubber-band */
+  /*
+   * Launched from the Home Screen there is no browser chrome to fall back on,
+   * so the page has to behave like an app: no rubber-band, no accidental text
+   * selection when tapping around, no magnifier on a long press, and no
+   * double-tap zoom on controls.
+   */
   body[data-standalone='true'] {
     overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Actual content stays selectable — copying a phone number still works. */
+  body[data-standalone='true'] input,
+  body[data-standalone='true'] textarea,
+  body[data-standalone='true'] [data-selectable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  a,
+  button,
+  [role='button'],
+  label,
+  summary {
+    touch-action: manipulation;
   }
 
   input,

@@ -5,12 +5,12 @@ import Image from 'next/image'
 import { useT, useLang } from '@/components/lang-provider'
 import { Field, SubmitButton } from '@/components/ui'
 import { Icon } from '@/components/icons'
-import { signIn, signUp, requestPasswordReset } from './actions'
+import { signIn, requestPasswordReset } from './actions'
 import type { ActionResult } from '@/lib/types'
 
-type Mode = 'signin' | 'signup' | 'reset'
+type Mode = 'signin' | 'reset'
 
-export function LoginForm({ next, allowSignup }: { next: string; allowSignup: boolean }) {
+export function LoginForm({ next }: { next: string }) {
   const t = useT()
   const { lang, toggleLang } = useLang()
   const [mode, setMode] = useState<Mode>('signin')
@@ -19,21 +19,16 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
     signIn,
     null,
   )
-  const [signUpState, signUpAction, signingUp] = useActionState<ActionResult | null, FormData>(
-    signUp,
-    null,
-  )
   const [resetState, resetAction, resetting] = useActionState<ActionResult | null, FormData>(
     requestPasswordReset,
     null,
   )
 
-  const state = mode === 'signin' ? signInState : mode === 'signup' ? signUpState : resetState
-  const pending = signingIn || signingUp || resetting
+  const state = mode === 'signin' ? signInState : resetState
+  const pending = signingIn || resetting
 
   const titles: Record<Mode, { title: string; sub: string }> = {
     signin: { title: t('auth.signInTitle'), sub: t('auth.signInSub') },
-    signup: { title: t('auth.createTitle'), sub: t('auth.createSub') },
     reset: { title: t('auth.resetTitle'), sub: t('auth.resetSub') },
   }
 
@@ -75,7 +70,7 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
           </div>
         )}
 
-        {mode === 'signin' && (
+        {mode === 'signin' ? (
           <form action={signInAction} className="flex flex-col gap-4">
             <input type="hidden" name="next" value={next} />
             <Field label={t('auth.email')}>
@@ -103,42 +98,7 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
               {t('auth.signIn')}
             </SubmitButton>
           </form>
-        )}
-
-        {mode === 'signup' && (
-          <form action={signUpAction} className="flex flex-col gap-4">
-            <Field label={t('auth.fullName')}>
-              <input className="ob-input" name="fullName" type="text" autoComplete="name" required />
-            </Field>
-            <Field label={t('auth.email')}>
-              <input
-                className="ob-input"
-                name="email"
-                type="email"
-                autoComplete="username"
-                inputMode="email"
-                required
-                dir="ltr"
-              />
-            </Field>
-            <Field label={t('auth.password')} hint="At least 8 characters">
-              <input
-                className="ob-input"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                dir="ltr"
-              />
-            </Field>
-            <SubmitButton pending={pending} className="mt-1 h-12 w-full text-[14px]">
-              {t('auth.createAccount')}
-            </SubmitButton>
-          </form>
-        )}
-
-        {mode === 'reset' && (
+        ) : (
           <form action={resetAction} className="flex flex-col gap-4">
             <Field label={t('auth.email')}>
               <input
@@ -157,18 +117,15 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
           </form>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-ink/8 pt-4 text-[12.5px] font-semibold">
+        <div className="mt-5 border-t border-ink/8 pt-4 text-[12.5px] font-semibold">
           {mode === 'signin' ? (
-            <>
-              <button type="button" onClick={() => setMode('reset')} className="text-ink/55 hover:text-ink">
-                {t('auth.forgot')}
-              </button>
-              {allowSignup && (
-                <button type="button" onClick={() => setMode('signup')} className="text-ink">
-                  {t('auth.createAccount')}
-                </button>
-              )}
-            </>
+            <button
+              type="button"
+              onClick={() => setMode('reset')}
+              className="text-ink/55 hover:text-ink"
+            >
+              {t('auth.forgot')}
+            </button>
           ) : (
             <button type="button" onClick={() => setMode('signin')} className="text-ink">
               ← {t('auth.signIn')}
@@ -177,7 +134,10 @@ export function LoginForm({ next, allowSignup }: { next: string; allowSignup: bo
         </div>
       </div>
 
-      <p className="mt-5 text-center text-[11.5px] font-medium text-ink/40">
+      {/* Accounts are issued by an admin — there is no way to make one here. */}
+      <p className="mt-5 text-center text-[11.5px] font-medium leading-relaxed text-ink/40">
+        {t('auth.adminOnly')}
+        <br />
         {t('auth.recorded')}
       </p>
     </div>

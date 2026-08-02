@@ -99,6 +99,7 @@ const en = {
   'auth.noAccessBody': 'Ask an admin to grant you the permission you need.',
   'auth.signedInAs': 'Signed in as',
   'auth.recorded': 'Obscura · internal system. Every action is recorded.',
+  'auth.adminOnly': 'Accounts are created by an admin. Contact the studio for access.',
 
   'dash.title': 'Dashboard',
   'dash.sub': 'What is happening in the studio today',
@@ -291,6 +292,20 @@ const en = {
   'inv.openStatement': 'Open statement',
   'inv.totalInvoiced': 'Invoiced',
   'inv.thankYou': 'Thank you for working with Obscura.',
+  'inv.clientLink': 'Client link',
+  'inv.linkHint':
+    'Creates a private link the client can open on any device — no account needed — to view the invoice and save it as a PDF.',
+  'inv.createLink': 'Create client link',
+  'inv.copyLink': 'Copy link',
+  'inv.sendLink': 'Send link',
+  'inv.newLink': 'New link',
+  'inv.withdrawLink': 'Withdraw',
+  'inv.linkCopied': 'Link copied',
+  'inv.linkCopyManual': 'Select the link and copy it',
+  'inv.linkNew': 'New link created — the old one no longer works',
+  'inv.linkLive': 'A client link is active for this invoice.',
+  'inv.linkWarning': 'Anyone holding the link can view this invoice. Withdraw it to cut access.',
+  'inv.opened': 'opens',
 
   'team.title': 'Team',
   'team.sub': 'Members, output and payroll',
@@ -402,6 +417,12 @@ const en = {
   'settings.installBody':
     'Open this page in Safari, tap Share, then "Add to Home Screen". It opens full screen like an app.',
 
+  'install.title': 'Install Obscura',
+  'install.iosBefore': 'Tap',
+  'install.iosAfter': 'then "Add to Home Screen" to open it full screen like an app.',
+  'install.android': 'Install it to open full screen like an app.',
+  'install.action': 'Install',
+
   'toast.saved': 'Saved',
   'toast.deleted': 'Deleted',
   'toast.error': 'Something went wrong',
@@ -510,6 +531,7 @@ const ar: Record<DictKey, string> = {
   'auth.noAccessBody': 'اطلب من المدير منحك الصلاحية المطلوبة.',
   'auth.signedInAs': 'مسجّل الدخول باسم',
   'auth.recorded': 'أوبسكيورا · نظام داخلي. يتم تسجيل كل إجراء.',
+  'auth.adminOnly': 'الحسابات يتم إنشاؤها بواسطة المدير. تواصل مع الاستوديو للحصول على صلاحية.',
 
   'dash.title': 'الرئيسية',
   'dash.sub': 'ما يحدث في الاستوديو اليوم',
@@ -702,6 +724,20 @@ const ar: Record<DictKey, string> = {
   'inv.openStatement': 'فتح كشف الحساب',
   'inv.totalInvoiced': 'إجمالي الفواتير',
   'inv.thankYou': 'شكرًا لتعاملكم مع أوبسكيورا.',
+  'inv.clientLink': 'رابط العميل',
+  'inv.linkHint':
+    'ينشئ رابطًا خاصًا يفتحه العميل من أي جهاز — بدون حساب — لعرض الفاتورة وحفظها كـ PDF.',
+  'inv.createLink': 'إنشاء رابط للعميل',
+  'inv.copyLink': 'نسخ الرابط',
+  'inv.sendLink': 'إرسال الرابط',
+  'inv.newLink': 'رابط جديد',
+  'inv.withdrawLink': 'سحب الرابط',
+  'inv.linkCopied': 'تم نسخ الرابط',
+  'inv.linkCopyManual': 'حدد الرابط وانسخه',
+  'inv.linkNew': 'تم إنشاء رابط جديد — الرابط القديم لم يعد يعمل',
+  'inv.linkLive': 'يوجد رابط عميل نشط لهذه الفاتورة.',
+  'inv.linkWarning': 'أي شخص يملك الرابط يستطيع عرض الفاتورة. اسحب الرابط لإيقاف الوصول.',
+  'inv.opened': 'فتحات',
 
   'team.title': 'الفريق',
   'team.sub': 'الأعضاء والإنتاج والرواتب',
@@ -812,6 +848,12 @@ const ar: Record<DictKey, string> = {
   'settings.install': 'ثبّت التطبيق على هاتفك',
   'settings.installBody':
     'افتح هذه الصفحة في سفاري، اضغط مشاركة، ثم "إضافة إلى الشاشة الرئيسية". سيفتح بملء الشاشة مثل التطبيق.',
+
+  'install.title': 'ثبّت أوبسكيورا',
+  'install.iosBefore': 'اضغط',
+  'install.iosAfter': 'ثم "إضافة إلى الشاشة الرئيسية" ليفتح بملء الشاشة مثل التطبيق.',
+  'install.android': 'ثبّته ليفتح بملء الشاشة مثل التطبيق.',
+  'install.action': 'تثبيت',
 
   'toast.saved': 'تم الحفظ',
   'toast.deleted': 'تم الحذف',

@@ -1,7 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/auth', '/api/keepalive', '/manifest.webmanifest', '/sw.js', '/offline']
+const PUBLIC_PATHS = [
+  '/login',
+  '/auth',
+  '/api/keepalive',
+  '/manifest.webmanifest',
+  '/sw.js',
+  '/offline',
+  // Shared invoice links. The token in the URL is the only credential, and the
+  // database exposes exactly one function to anonymous callers.
+  '/i',
+]
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
@@ -21,6 +31,11 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/setup') return response
     return NextResponse.redirect(new URL('/setup', request.url))
   }
+
+  // A client opening an invoice link has no session and should never be asked
+  // for one, so skip the auth round trip entirely. /login is excluded because
+  // it still needs to know whether to bounce an already-signed-in user onward.
+  if (isPublic(pathname) && !pathname.startsWith('/login')) return response
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
