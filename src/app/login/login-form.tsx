@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useT, useLang } from '@/components/lang-provider'
 import { Field, SubmitButton } from '@/components/ui'
@@ -12,8 +13,17 @@ type Mode = 'signin' | 'reset'
 
 export function LoginForm({ next }: { next: string }) {
   const t = useT()
+  const router = useRouter()
   const { lang, toggleLang } = useLang()
   const [mode, setMode] = useState<Mode>('signin')
+
+  /*
+   * Nothing may submit before React has taken over the form. Until then a tap
+   * would be a native POST — a full page load — which iOS bounces out of the
+   * Home Screen app and into Safari.
+   */
+  const [ready, setReady] = useState(false)
+  useEffect(() => setReady(true), [])
 
   const [signInState, signInAction, signingIn] = useActionState<ActionResult | null, FormData>(
     signIn,
@@ -26,6 +36,14 @@ export function LoginForm({ next }: { next: string }) {
 
   const state = mode === 'signin' ? signInState : resetState
   const pending = signingIn || resetting
+
+  // Navigate in-app once the sign in comes back, rather than following a
+  // server redirect.
+  useEffect(() => {
+    if (signInState?.ok && signInState.redirectTo) {
+      router.replace(signInState.redirectTo)
+    }
+  }, [signInState, router])
 
   const titles: Record<Mode, { title: string; sub: string }> = {
     signin: { title: t('auth.signInTitle'), sub: t('auth.signInSub') },
@@ -63,7 +81,7 @@ export function LoginForm({ next }: { next: string }) {
             {state.error}
           </div>
         )}
-        {state?.ok && state.message && (
+        {state?.ok && state.message && !state.redirectTo && (
           <div className="mb-4 flex items-start gap-2 rounded-xl bg-moss/10 px-4 py-3 text-[12.5px] font-semibold text-moss">
             <Icon name="check" size={15} className="mt-px flex-shrink-0" />
             {state.message}
@@ -94,7 +112,11 @@ export function LoginForm({ next }: { next: string }) {
                 dir="ltr"
               />
             </Field>
-            <SubmitButton pending={pending} className="mt-1 h-12 w-full text-[14px]">
+            <SubmitButton
+              pending={pending || Boolean(signInState?.ok)}
+              disabled={!ready}
+              className="mt-1 h-12 w-full text-[14px]"
+            >
               {t('auth.signIn')}
             </SubmitButton>
           </form>
@@ -111,7 +133,7 @@ export function LoginForm({ next }: { next: string }) {
                 dir="ltr"
               />
             </Field>
-            <SubmitButton pending={pending} className="mt-1 h-12 w-full text-[14px]">
+            <SubmitButton pending={pending} disabled={!ready} className="mt-1 h-12 w-full text-[14px]">
               {t('auth.sendReset')}
             </SubmitButton>
           </form>

@@ -70,8 +70,18 @@ export async function signIn(_prev: ActionResult | null, formData: FormData): Pr
 
   revalidatePath('/', 'layout')
 
-  if (!profile?.is_active) redirect('/pending')
-  redirect(next.startsWith('/') ? next : '/dashboard')
+  /*
+   * Deliberately NOT redirect() here.
+   *
+   * A server redirect after a form post is a full-page navigation, and iOS
+   * treats that as leaving a Home Screen web app — it reopens the destination
+   * in Safari, address bar and all. Handing the destination back and letting
+   * the client router move keeps everything inside the installed app.
+   */
+  return {
+    ok: true,
+    redirectTo: profile?.is_active ? (next.startsWith('/') ? next : '/dashboard') : '/pending',
+  }
 }
 
 /*
@@ -105,7 +115,7 @@ export async function requestPasswordReset(
   return { ok: true, message: 'Check your email for the reset link.' }
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(): Promise<ActionResult> {
   const supabase = await createClient()
   const { ip, userAgent } = requestMeta(await headers())
 
@@ -131,5 +141,7 @@ export async function signOut(): Promise<void> {
 
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
-  redirect('/login')
+  // Same reason as sign in: a server redirect is a full page load, which drops
+  // an iOS Home Screen app back into Safari.
+  return { ok: true, redirectTo: '/login' }
 }

@@ -2,6 +2,7 @@
 
 import clsx from 'clsx'
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { signOut } from '@/app/login/actions'
 import { useT } from './lang-provider'
 import { Icon } from './icons'
@@ -14,6 +15,7 @@ export function SignOutButton({
   variant?: 'ghost' | 'plain'
 }) {
   const t = useT()
+  const router = useRouter()
   const [pending, start] = useTransition()
 
   return (
@@ -23,9 +25,11 @@ export function SignOutButton({
       onClick={() =>
         start(async () => {
           try {
-            await signOut()
+            const result = await signOut()
+            router.replace(result.redirectTo ?? '/login')
+            router.refresh()
           } catch {
-            // The action redirects on success; nothing useful to show here.
+            router.replace('/login')
           }
         })
       }

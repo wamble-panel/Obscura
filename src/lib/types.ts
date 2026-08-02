@@ -348,4 +348,6 @@ export type ActionResult = {
   ok: boolean
   error?: string
   message?: string
+  /** Where the client should navigate next, instead of a server redirect. */
+  redirectTo?: string
 }

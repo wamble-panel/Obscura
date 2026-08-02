@@ -6,6 +6,7 @@ import { AppShell } from '@/components/shell/shell'
 import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { InstallPrompt } from '@/components/ios/install-prompt'
 import { PullToRefresh } from '@/components/ios/pull-to-refresh'
+import { StandaloneGuard } from '@/components/ios/standalone-guard'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Fetched together rather than one after the other — the shell is on the
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppProvider viewer={viewer} settings={settings}>
       <PresenceHeartbeat />
+      <StandaloneGuard />
       <PullToRefresh />
       <AppShell>{children}</AppShell>
       <InstallPrompt />

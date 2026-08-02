@@ -1,6 +1,7 @@
 {
   "name": "Obscura Studio",
   "short_name": "Obscura",
+  "id": "/dashboard",
   "description": "Internal management system for studio orders, rentals, projects and team.",
   "start_url": "/dashboard",
   "scope": "/",
@@ -10,7 +11,10 @@
   "theme_color": "#E0DCD0",
   "lang": "en",
   "dir": "auto",
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -36,19 +40,34 @@
       "name": "Calendar",
       "short_name": "Calendar",
       "url": "/calendar",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Rentals",
       "short_name": "Rentals",
       "url": "/rentals",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Gear",
       "short_name": "Gear",
       "url": "/gear",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
