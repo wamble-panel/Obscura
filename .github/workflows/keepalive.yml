@@ -1,0 +1,55 @@
+name: Supabase keep-alive
+
+# A free Supabase project pauses after ~7 days of inactivity. Vercel Cron
+# already pings it daily; this is the backup, in case the deployment is paused,
+# renamed, or the cron quota changes.
+#
+# Setup (one time):
+#   GitHub repo -> Settings -> Secrets and variables -> Actions -> New secret
+#     KEEPALIVE_URL     https://your-app.vercel.app/api/keepalive
+#     CRON_SECRET       the same value you set in Vercel (optional but recommended)
+
+on:
+  schedule:
+    # 05:30 UTC every day, and again on Sundays for good measure.
+    - cron: '30 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the keep-alive endpoint
+        env:
+          KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$KEEPALIVE_URL" ]; then
+            echo "KEEPALIVE_URL secret is not set — nothing to ping."
+            exit 0
+          fi
+
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt…"
+            status=$(curl --silent --show-error --location \
+              --max-time 30 \
+              --write-out '%{http_code}' \
+              --output /tmp/keepalive.json \
+              --header "Authorization: Bearer $CRON_SECRET" \
+              "$KEEPALIVE_URL?source=github-actions" || echo "000")
+
+            echo "HTTP $status"
+            cat /tmp/keepalive.json || true
+            echo
+
+            if [ "$status" = "200" ]; then
+              echo "Database is awake."
+              exit 0
+            fi
+
+            sleep $((attempt * 10))
+          done
+
+          echo "::error::Keep-alive failed after 3 attempts."
+          exit 1
