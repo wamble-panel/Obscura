@@ -8,11 +8,12 @@ export const DEFAULT_STUDIO: StudioSettings = {
   branch: 'Mokattam Branch',
   currency: 'EGP',
   usd_rate: 48,
-  open_hour: 9,
-  close_hour: 23,
+  open_hour: 0,
+  close_hour: 24,
   timezone: 'Africa/Cairo',
   phone: '01033447399',
   instagram: '@obscura_house_',
+  auto_invoice: true,
 }
 
 /** Mirrors the seed in schema.sql so the app is never blank if a row is missing. */

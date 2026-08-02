@@ -211,6 +211,11 @@ const en = {
   'projects.afterThis': 'After this report',
   'projects.empty': 'No projects yet',
   'projects.titlePh': 'e.g. Ramadan campaign edits',
+  'projects.assignee': 'Assigned to',
+  'projects.assigneeHint': 'They will see it under "Mine" and on their dashboard.',
+  'projects.mine': 'Mine',
+  'projects.you': 'You',
+  'projects.yourProjects': 'Your projects',
 
   'clients.title': 'Clients',
   'clients.sub': 'Everyone the studio works with',
@@ -219,6 +224,7 @@ const en = {
   'clients.sessions': 'Sessions',
   'clients.spend': 'Total spend',
   'clients.empty': 'No clients yet',
+  'clients.willCreate': 'New client — will be added to the list',
 
   'finance.title': 'Finance',
   'finance.sub': 'Income, expenses and the ledger',
@@ -650,6 +656,11 @@ const ar: Record<DictKey, string> = {
   'projects.afterThis': 'بعد هذا التسجيل',
   'projects.empty': 'لا توجد مشاريع بعد',
   'projects.titlePh': 'مثال: مونتاج حملة رمضان',
+  'projects.assignee': 'مُسند إلى',
+  'projects.assigneeHint': 'سيظهر له ضمن "مشاريعي" وعلى صفحته الرئيسية.',
+  'projects.mine': 'مشاريعي',
+  'projects.you': 'أنت',
+  'projects.yourProjects': 'مشاريعك',
 
   'clients.title': 'العملاء',
   'clients.sub': 'كل من يتعامل معهم الاستوديو',
@@ -658,6 +669,7 @@ const ar: Record<DictKey, string> = {
   'clients.sessions': 'الجلسات',
   'clients.spend': 'إجمالي الإنفاق',
   'clients.empty': 'لا يوجد عملاء بعد',
+  'clients.willCreate': 'عميل جديد — ستتم إضافته إلى القائمة',
 
   'finance.title': 'المالية',
   'finance.sub': 'الإيرادات والمصروفات ودفتر الحسابات',

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useApp } from '@/components/app-context'
 import { useLang, useT } from '@/components/lang-provider'
@@ -305,14 +306,11 @@ export function SettingsView({
         <Card className="lg:col-span-2">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-[15px] font-extrabold">{t('settings.terms')}</h2>
-            <a
-              href="/terms"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[12px] font-bold text-ink/55 hover:text-ink"
-            >
+            {/* Kept in-app: target="_blank" would kick a Home Screen launch out
+                into Safari, address bar and all. */}
+            <Link href="/terms" className="text-[12px] font-bold text-ink/55 hover:text-ink">
               {t('settings.viewTerms')} →
-            </a>
+            </Link>
           </div>
           <p className="mb-4 text-[12.5px] font-medium text-ink/55">{t('settings.termsHint')}</p>
 

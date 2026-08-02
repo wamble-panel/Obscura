@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   const allowed = (permission: string) =>
     can(viewer.permissions, permission, viewer.profile.role_key)
 
-  const [todayRes, upcomingRes, rentalsRes, projectsRes, summaryRes] = await Promise.all([
+  const [todayRes, upcomingRes, rentalsRes, projectsRes, meRes, summaryRes] = await Promise.all([
     allowed(PERMISSIONS.ordersView)
       ? supabase.from('sessions').select('*').eq('date', today).order('start_hour')
       : Promise.resolve({ data: [] }),
@@ -46,6 +46,7 @@ export default async function DashboardPage() {
     allowed(PERMISSIONS.projectsView)
       ? supabase.from('v_project_progress').select('*').neq('status', 'archived')
       : Promise.resolve({ data: [] }),
+    supabase.from('team_members').select('id').eq('profile_id', viewer.profile.id).maybeSingle(),
     allowed(PERMISSIONS.financeView)
       ? supabase.rpc('finance_summary', {
           p_year: now.getFullYear(),
@@ -57,7 +58,20 @@ export default async function DashboardPage() {
   const todaySessions = (todayRes.data ?? []) as StudioSession[]
   const upcoming = (upcomingRes.data ?? []) as StudioSession[]
   const rentals = (rentalsRes.data ?? []) as Rental[]
-  const projects = (projectsRes.data ?? []) as { total_videos: number; delivered: number; status: string }[]
+  const projects = (projectsRes.data ?? []) as {
+    id: string
+    client_name: string
+    title: string
+    total_videos: number
+    delivered: number
+    pct: number
+    status: string
+    assignee_member_id: string | null
+  }[]
+  const myMemberId = (meRes.data as { id: string } | null)?.id ?? null
+  const myProjects = myMemberId
+    ? projects.filter((p) => p.assignee_member_id === myMemberId && p.delivered < p.total_videos)
+    : []
   const summary = (Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data) as
     | FinanceSummary
     | null
@@ -198,6 +212,36 @@ export default async function DashboardPage() {
                 ))}
               </div>
             )}
+          </Card>
+        )}
+
+        {myProjects.length > 0 && (
+          <Card>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[14px] font-extrabold">{t('projects.yourProjects')}</h2>
+              <Link href="/projects" className="text-[12px] font-bold text-ink/50 hover:text-ink">
+                {t('common.view')} →
+              </Link>
+            </div>
+            <div className="flex flex-col gap-2">
+              {myProjects.map((p) => (
+                <Link
+                  key={p.id}
+                  href="/projects"
+                  className="flex items-center justify-between gap-3 rounded-[14px] border border-ink/8 px-3.5 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13.5px] font-extrabold">{p.client_name}</div>
+                    <div className="truncate text-[11.5px] font-semibold text-ink/50">
+                      {p.title}
+                    </div>
+                  </div>
+                  <span className="ob-ltr flex-shrink-0 text-[12.5px] font-extrabold">
+                    {p.delivered}/{p.total_videos}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </Card>
         )}
 

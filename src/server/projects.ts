@@ -16,6 +16,7 @@ export type ProjectInput = {
   deadline?: string | null
   notes?: string | null
   status?: string
+  assigneeMemberId?: string | null
 }
 
 function touched() {
@@ -30,9 +31,24 @@ export async function saveProject(input: ProjectInput): Promise<ActionResult> {
     if (input.totalVideos < 1) return { ok: false, error: 'A project needs at least one video.' }
 
     const supabase = await createClient()
+
+    // Store the name alongside the id so the project still reads correctly if
+    // the member is later removed from the team.
+    let assigneeName: string | null = null
+    if (input.assigneeMemberId) {
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', input.assigneeMemberId)
+        .maybeSingle()
+      assigneeName = member?.name ?? null
+    }
+
     const row = {
       client_id: input.clientId || null,
       client_name: input.clientName.trim(),
+      assignee_member_id: input.assigneeMemberId || null,
+      assignee_name: assigneeName,
       title: input.title.trim(),
       value: Math.max(0, input.value),
       total_videos: Math.round(input.totalVideos),

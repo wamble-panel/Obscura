@@ -13,9 +13,11 @@ import {
   Modal,
   PageHeader,
   ProgressBar,
+  Segmented,
   StatCard,
   Stepper,
   SubmitButton,
+  Toolbar,
   useToast,
 } from '@/components/ui'
 import { Icon } from '@/components/icons'
@@ -29,11 +31,13 @@ export function ProjectsView({
   deliveries,
   members,
   clients,
+  myMemberId,
 }: {
   projects: ProjectProgress[]
   deliveries: ProjectDelivery[]
   members: TeamMember[]
   clients: Client[]
+  myMemberId: string | null
 }) {
   const t = useT()
   const { lang } = useLang()
@@ -52,6 +56,8 @@ export function ProjectsView({
   const [value, setValue] = useState(0)
   const [totalVideos, setTotalVideos] = useState(10)
   const [deadline, setDeadline] = useState('')
+  const [assigneeId, setAssigneeId] = useState('')
+  const [scope, setScope] = useState<'all' | 'mine'>('all')
 
   const [memberId, setMemberId] = useState('')
   const [count, setCount] = useState(1)
@@ -69,6 +75,7 @@ export function ProjectsView({
     setValue(Number(project?.value ?? 0))
     setTotalVideos(project?.total_videos ?? 10)
     setDeadline(project?.deadline ?? '')
+    setAssigneeId(project?.assignee_member_id ?? '')
     setFormOpen(true)
   }
 
@@ -83,6 +90,7 @@ export function ProjectsView({
         value,
         totalVideos,
         deadline: deadline || null,
+        assigneeMemberId: assigneeId || null,
       })
       if (result.ok) {
         toast(result.message ?? t('toast.saved'))
@@ -107,6 +115,11 @@ export function ProjectsView({
       }
     })
   }
+
+  const visible =
+    scope === 'mine' && myMemberId
+      ? projects.filter((p) => p.assignee_member_id === myMemberId)
+      : projects
 
   const totals = {
     active: projects.filter((p) => p.delivered < p.total_videos).length,
@@ -159,7 +172,23 @@ export function ProjectsView({
         />
       </div>
 
-      {projects.length === 0 ? (
+      {myMemberId && (
+        <Toolbar>
+          <Segmented<'all' | 'mine'>
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: 'all', label: t('common.all') },
+              {
+                value: 'mine',
+                label: `${t('projects.mine')} (${projects.filter((p) => p.assignee_member_id === myMemberId).length})`,
+              },
+            ]}
+          />
+        </Toolbar>
+      )}
+
+      {visible.length === 0 ? (
         <Card>
           <EmptyState
             icon="folder"
@@ -175,7 +204,7 @@ export function ProjectsView({
         </Card>
       ) : (
         <div className="flex flex-col gap-3.5">
-          {projects.map((p) => {
+          {visible.map((p) => {
             const pct = p.pct
             const tone = pct >= 100 ? 'ink' : pct >= 50 ? 'neutral' : 'warn'
             const label =
@@ -191,6 +220,14 @@ export function ProjectsView({
                       <Badge tone={tone}>{label}</Badge>
                     </div>
                     <div className="mt-0.5 text-[12.5px] font-medium text-ink/55">{p.title}</div>
+                    {p.assignee_name && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-ink/6 py-1 ltr:pl-1 ltr:pr-2.5 rtl:pr-1 rtl:pl-2.5">
+                        <Avatar name={p.assignee_name} size={18} />
+                        <span className="text-[11px] font-bold text-ink/70">
+                          {p.assignee_member_id === myMemberId ? t('projects.you') : p.assignee_name}
+                        </span>
+                      </div>
+                    )}
                     {p.deadline && (
                       <div className="mt-1 text-[11.5px] font-semibold text-ink/45">
                         {t('projects.deadline')}{' '}
@@ -367,6 +404,31 @@ export function ProjectsView({
               <Stepper value={totalVideos} onChange={setTotalVideos} min={1} max={500} />
             </Field>
           </div>
+          <Field label={t('projects.assignee')} hint={t('projects.assigneeHint')}>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAssigneeId('')}
+                data-on={assigneeId === ''}
+                className="ob-chip"
+              >
+                {t('common.none')}
+              </button>
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setAssigneeId(m.id)}
+                  data-on={assigneeId === m.id}
+                  className="ob-chip h-9"
+                >
+                  <Avatar name={m.name} size={20} />
+                  {m.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <Field label={t('projects.deadline')} hint={t('common.optional')}>
             <input
               className="ob-input"

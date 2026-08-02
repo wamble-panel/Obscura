@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/components/app-context'
 import { useLang, useT } from '@/components/lang-provider'
@@ -50,6 +50,12 @@ export function CalendarView({
   const dragStart = useRef<number | null>(null)
   const [dragEnd, setDragEnd] = useState<number | null>(null)
 
+  // The studio runs around the clock, so the day is 24 rows tall. Scroll to
+  // where the day actually starts rather than parking on an empty 3am.
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const [nowOffset, setNowOffset] = useState(0)
+
+
   const canCreate = can(PERMISSIONS.ordersCreate)
 
   const byDate = useMemo(() => {
@@ -63,6 +69,43 @@ export function CalendarView({
     for (const list of map.values()) list.sort((a, b) => a.start_hour - b.start_hour)
     return map
   }, [sessions])
+
+  /** Per-day totals so the month grid can show how busy each day is at a glance. */
+  const dayLoad = useMemo(() => {
+    const map = new Map<string, { count: number; hours: number; unpaid: boolean }>()
+    for (const [date, list] of byDate) {
+      map.set(date, {
+        count: list.length,
+        hours: list.reduce((sum, s) => sum + s.hours, 0),
+        unpaid: list.some((s) => !s.deposit_paid),
+      })
+    }
+    return map
+  }, [byDate])
+
+  useEffect(() => {
+    const el = timelineRef.current
+    if (!el) return
+    const list = byDate.get(selected) ?? []
+    const focusHour =
+      list.length > 0
+        ? Math.min(...list.map((s) => s.start_hour))
+        : selected === today
+          ? new Date().getHours()
+          : 9
+    const top = Math.max(0, (focusHour - studio.open_hour) * ROW_HEIGHT - ROW_HEIGHT)
+    el.scrollTo({ top, behavior: 'smooth' })
+  }, [selected, byDate, studio.open_hour, today])
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      setNowOffset((now.getHours() - studio.open_hour + now.getMinutes() / 60) * ROW_HEIGHT)
+    }
+    tick()
+    const id = setInterval(tick, 60_000)
+    return () => clearInterval(id)
+  }, [studio.open_hour])
 
   const daySessions = byDate.get(selected) ?? []
   const dayHours = daySessions.reduce((sum, s) => sum + s.hours, 0)
@@ -183,7 +226,12 @@ export function CalendarView({
           </div>
 
           <div
-            className="relative mt-4 select-none"
+            ref={timelineRef}
+            data-no-pull
+            className="ob-scroll-y relative mt-4 max-h-[62vh] overflow-y-auto lg:max-h-[560px]"
+          >
+          <div
+            className="relative select-none"
             onMouseLeave={() => dragging && finishDrag()}
             onMouseUp={finishDrag}
           >
@@ -242,6 +290,20 @@ export function CalendarView({
                 </button>
               )
             })}
+
+            {/* where we are in the day, on today only */}
+            {selected === today && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute z-10 ltr:left-[54px] ltr:right-0 rtl:right-[54px] rtl:left-0"
+                style={{ top: nowOffset }}
+              >
+                <div className="relative h-px bg-clay">
+                  <span className="absolute -top-1 h-2 w-2 rounded-full bg-clay ltr:-left-1 rtl:-right-1" />
+                </div>
+              </div>
+            )}
+          </div>
           </div>
 
           {canCreate && (
@@ -311,13 +373,20 @@ export function CalendarView({
                 if (!cell.key) return <div key={i} />
                 const active = cell.key === selected
                 const isToday = cell.key === today
-                const count = (byDate.get(cell.key) ?? []).length
+                const load = dayLoad.get(cell.key)
+                // One dot per session, up to three, then "+" for anything beyond.
+                const dots = Math.min(load?.count ?? 0, 3)
                 return (
                   <button
                     key={cell.key}
                     type="button"
                     onClick={() => setSelected(cell.key!)}
-                    className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-[13.5px] transition-colors ${
+                    title={
+                      load
+                        ? `${load.count} session${load.count > 1 ? 's' : ''} · ${load.hours}h`
+                        : undefined
+                    }
+                    className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-[13.5px] transition-colors ${
                       active
                         ? 'bg-ink font-extrabold text-bone'
                         : isToday
@@ -325,17 +394,41 @@ export function CalendarView({
                           : 'font-semibold hover:bg-ink/6'
                     }`}
                   >
-                    <span className="ob-ltr">{cell.day}</span>
+                    <span className="ob-ltr leading-none">{cell.day}</span>
+
+                    {/* how many bookings */}
+                    <span className="flex h-1.5 items-center gap-[2px]">
+                      {Array.from({ length: dots }).map((_, d) => (
+                        <span
+                          key={d}
+                          className="h-1 w-1 rounded-full"
+                          style={{
+                            background: active
+                              ? 'rgba(242,240,233,.9)'
+                              : load?.unpaid
+                                ? '#C4643F'
+                                : '#B29A6E',
+                          }}
+                        />
+                      ))}
+                      {(load?.count ?? 0) > 3 && (
+                        <span
+                          className="text-[8px] font-extrabold leading-none"
+                          style={{ color: active ? 'rgba(242,240,233,.9)' : '#B29A6E' }}
+                        >
+                          +
+                        </span>
+                      )}
+                    </span>
+
+                    {/* how many hours */}
                     <span
-                      className="h-1 w-1 rounded-full"
-                      style={{
-                        background: count
-                          ? active
-                            ? 'rgba(242,240,233,.85)'
-                            : '#B29A6E'
-                          : 'transparent',
-                      }}
-                    />
+                      className={`ob-ltr text-[8.5px] font-bold leading-none ${
+                        active ? 'text-bone/70' : 'text-ink/40'
+                      }`}
+                    >
+                      {load ? `${load.hours}h` : ' '}
+                    </span>
                   </button>
                 )
               })}

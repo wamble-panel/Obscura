@@ -305,6 +305,13 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* The day timeline covers all 24 hours, so it scrolls inside its own card. */
+  .ob-scroll-y {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
 }
 
 @layer utilities {
