@@ -11,6 +11,9 @@ const PUBLIC_PATHS = [
   // Shared invoice links. The token in the URL is the only credential, and the
   // database exposes exactly one function to anonymous callers.
   '/i',
+  // The studio's Terms & Conditions — clients are pointed here from their
+  // invoice, so it has to open without an account.
+  '/terms',
 ]
 
 function isPublic(pathname: string) {

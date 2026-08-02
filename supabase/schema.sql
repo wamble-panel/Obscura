@@ -479,7 +479,37 @@ insert into public.app_settings(key, value) values
       'usd_rate', 48,
       'open_hour', 9,
       'close_hour', 23,
-      'timezone', 'Africa/Cairo')),
+      'timezone', 'Africa/Cairo',
+      'phone', '01033447399',
+      'instagram', '@obscura_house_')),
+
+  -- The studio's own Terms & Conditions, kept as data so they can be edited in
+  -- Settings without a deploy. Rendered as real text on the public /terms page
+  -- and referenced from every invoice, rather than living in a flat image.
+  ('terms', jsonb_build_object(
+      'heading', 'Terms & Conditions',
+      'agree_line', 'By booking a session at OBSCURA you agree to these terms.',
+      'badges', jsonb_build_array('No smoking', 'No pets', 'No alcohol'),
+      'invoice_line', 'Booking is subject to the Obscura Terms & Conditions.',
+      'sections', jsonb_build_array(
+        jsonb_build_object('title', 'Booking & Time', 'items', jsonb_build_array(
+          'Your booking starts and ends **exactly as scheduled** — hair, makeup, styling and prep all count within your time.',
+          '**Setup and teardown** must fit inside your booking duration.',
+          'The studio must be **vacated by the agreed end time**.',
+          'Extra time is subject to **availability** and charged separately.')),
+        jsonb_build_object('title', 'Studio Care', 'items', jsonb_build_array(
+          'Nothing may be hung, taped or stuck on the **cyclorama walls** without approval from studio management.',
+          'Damage to the cyclorama or studio property (marks, dents, tears) is **charged at repair cost**.',
+          'A minimum **EGP 100 cleaning fee** applies if the studio is left excessively dirty.')),
+        jsonb_build_object('title', 'Payment & Cancellation', 'items', jsonb_build_array(
+          'A **reservation fee** is required to confirm every booking.',
+          'The reservation fee is **non-refundable** for cancellations made **48 hours or less** before the session.',
+          'Rescheduling is subject to studio availability.')),
+        jsonb_build_object('title', 'House Rules', 'items', jsonb_build_array(
+          '**No smoking, no pets, no alcohol or drugs** anywhere on the premises.',
+          'Music must stay at **reasonable levels**.',
+          'The person who books is **responsible for their team and guests**.')))
+      )),
   ('pricing', jsonb_build_object(
       'hourly_rate', 300,
       'hourly_min_hours', 2,
@@ -1117,6 +1147,26 @@ begin
 end $$;
 
 grant execute on function public.invoice_by_share_token(text) to anon, authenticated;
+
+/**
+ * The studio's Terms & Conditions, plus the contact details that go under them.
+ * Public on purpose — clients are pointed at /terms from their invoice, and the
+ * terms are only worth anything if they can actually be read without an account.
+ */
+create or replace function public.public_terms()
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'terms', coalesce((select value from public.app_settings where key = 'terms'), '{}'::jsonb),
+    'studio', jsonb_build_object(
+      'name',      coalesce((select value->>'name'      from public.app_settings where key = 'studio'), 'Obscura Studio'),
+      'branch',    coalesce((select value->>'branch'    from public.app_settings where key = 'studio'), ''),
+      'phone',     coalesce((select value->>'phone'     from public.app_settings where key = 'studio'), ''),
+      'instagram', coalesce((select value->>'instagram' from public.app_settings where key = 'studio'), '')
+    ));
+$$;
+
+grant execute on function public.public_terms() to anon, authenticated;
 
 -- What a client owes, and what they have paid.
 create or replace view public.v_invoice_balance

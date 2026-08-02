@@ -193,8 +193,11 @@ export default async function StatementPage({
           </div>
         </section>
 
-        <footer className="mt-10 border-t border-ink/12 pt-6">
+        <footer className="mt-10 flex flex-wrap items-end justify-between gap-3 border-t border-ink/12 pt-6">
           <p className="text-[12px] font-semibold text-ink/40">{t('inv.thankYou')}</p>
+          <p className="ob-ltr text-[11.5px] font-semibold text-ink/45">
+            {[studio.phone, studio.instagram].filter(Boolean).join(' · ')}
+          </p>
         </footer>
       </article>
     </>

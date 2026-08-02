@@ -238,6 +238,20 @@ export default async function SharedInvoicePage({
               </p>
             </>
           )}
+
+          <p className="mt-4 text-[12px] font-medium text-ink/55">
+            Booking is subject to our{' '}
+            <a
+              href="/terms"
+              className="font-bold text-ink underline underline-offset-2"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Terms &amp; Conditions
+            </a>
+            .
+          </p>
+
           <p className="mt-6 text-[12px] font-semibold text-ink/40">
             Thank you for working with {studio.name}.
           </p>

@@ -191,6 +191,24 @@ itself, and withdraw it if it goes astray.
 
 ---
 
+## Terms & Conditions
+
+The studio's T&C lives in the database, not in a flat image, and is served as real
+text at **`/terms`** — a public page anyone can open, read, translate, search, or
+save as a PDF. Every shared invoice links to it, and every printed invoice carries
+the reference line.
+
+Edit it in **Settings → Terms & Conditions**: add or remove sections and points, and
+wrap a phrase in `**double asterisks**` to bold it. Changes are live immediately —
+no deploy, no designer. The original design is kept in
+[`design/`](design/obscura-terms-and-conditions.pdf) for reference.
+
+The seeded copy is the studio's real one: booking and time, studio care, payment and
+cancellation, house rules, the three house-rule pictograms, and
+*"By booking a session at OBSCURA you agree to these terms."*
+
+---
+
 ## Installing on iPhone
 
 1. Open the site in **Safari** (it must be Safari, not Chrome).

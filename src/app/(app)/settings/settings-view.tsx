@@ -8,15 +8,17 @@ import { Icon } from '@/components/icons'
 import { PERMISSIONS } from '@/lib/permissions'
 import { timeAgo } from '@/lib/format'
 import { pingDatabase, saveSettings } from '@/server/settings'
-import type { PricingSettings, StudioSettings } from '@/lib/types'
+import type { PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
 
 export function SettingsView({
   studio: initialStudio,
   pricing: initialPricing,
+  terms: initialTerms,
   keepalive,
 }: {
   studio: StudioSettings
   pricing: PricingSettings
+  terms: TermsSettings
   keepalive: { pinged_at: string | null; hits: number; source: string | null } | null
 }) {
   const t = useT()
@@ -28,13 +30,14 @@ export function SettingsView({
 
   const [studio, setStudio] = useState(initialStudio)
   const [pricing, setPricing] = useState(initialPricing)
+  const [terms, setTerms] = useState(initialTerms)
 
   const editable = can(PERMISSIONS.settingsEdit)
 
   const submit = () => {
     setError(null)
     start(async () => {
-      const result = await saveSettings({ studio, pricing })
+      const result = await saveSettings({ studio, pricing, terms })
       if (result.ok) toast(t('settings.saved'))
       else setError(result.error ?? t('toast.error'))
     })
@@ -121,6 +124,26 @@ export function SettingsView({
                   value={studio.usd_rate}
                   disabled={!editable}
                   onChange={num(setStudio, studio, 'usd_rate')}
+                  dir="ltr"
+                />
+              </Field>
+            </div>
+            <div className="flex gap-3">
+              <Field label={t('common.phone')} className="flex-1">
+                <input
+                  className="ob-input"
+                  value={studio.phone}
+                  disabled={!editable}
+                  onChange={text(setStudio, studio, 'phone')}
+                  dir="ltr"
+                />
+              </Field>
+              <Field label="Instagram" className="flex-1">
+                <input
+                  className="ob-input"
+                  value={studio.instagram}
+                  disabled={!editable}
+                  onChange={text(setStudio, studio, 'instagram')}
                   dir="ltr"
                 />
               </Field>
@@ -276,6 +299,146 @@ export function SettingsView({
             <Icon name="refresh" size={15} />
             {t('settings.pingNow')}
           </button>
+        </Card>
+
+        {/* -------------------------- Terms & Conditions -------------------------- */}
+        <Card className="lg:col-span-2">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-[15px] font-extrabold">{t('settings.terms')}</h2>
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[12px] font-bold text-ink/55 hover:text-ink"
+            >
+              {t('settings.viewTerms')} →
+            </a>
+          </div>
+          <p className="mb-4 text-[12.5px] font-medium text-ink/55">{t('settings.termsHint')}</p>
+
+          <div className="flex flex-col gap-4">
+            {terms.sections.map((section, si) => (
+              <div key={si} className="rounded-[14px] border border-ink/10 p-3.5">
+                <div className="mb-2 flex items-center gap-2">
+                  <input
+                    className="ob-input h-10 flex-1 font-bold"
+                    value={section.title}
+                    disabled={!editable}
+                    onChange={(e) =>
+                      setTerms((prev) => ({
+                        ...prev,
+                        sections: prev.sections.map((s, i) =>
+                          i === si ? { ...s, title: e.target.value } : s,
+                        ),
+                      }))
+                    }
+                  />
+                  {editable && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTerms((prev) => ({
+                          ...prev,
+                          sections: prev.sections.filter((_, i) => i !== si),
+                        }))
+                      }
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-ink/12"
+                      aria-label={t('common.remove')}
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  {section.items.map((item, ii) => (
+                    <div key={ii} className="flex items-start gap-2">
+                      <textarea
+                        className="ob-input min-h-[44px] flex-1 text-[13px]"
+                        rows={2}
+                        value={item}
+                        disabled={!editable}
+                        onChange={(e) =>
+                          setTerms((prev) => ({
+                            ...prev,
+                            sections: prev.sections.map((s, i) =>
+                              i === si
+                                ? {
+                                    ...s,
+                                    items: s.items.map((x, j) => (j === ii ? e.target.value : x)),
+                                  }
+                                : s,
+                            ),
+                          }))
+                        }
+                      />
+                      {editable && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setTerms((prev) => ({
+                              ...prev,
+                              sections: prev.sections.map((s, i) =>
+                                i === si
+                                  ? { ...s, items: s.items.filter((_, j) => j !== ii) }
+                                  : s,
+                              ),
+                            }))
+                          }
+                          className="mt-1 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-ink/12"
+                          aria-label={t('common.remove')}
+                        >
+                          <Icon name="close" size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {editable && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTerms((prev) => ({
+                        ...prev,
+                        sections: prev.sections.map((s, i) =>
+                          i === si ? { ...s, items: [...s.items, ''] } : s,
+                        ),
+                      }))
+                    }
+                    className="mt-2 text-[11.5px] font-bold text-ink/55 hover:text-ink"
+                  >
+                    + {t('settings.addPoint')}
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {editable && (
+              <button
+                type="button"
+                onClick={() =>
+                  setTerms((prev) => ({
+                    ...prev,
+                    sections: [...prev.sections, { title: '', items: [''] }],
+                  }))
+                }
+                className="ob-btn ob-btn-ghost w-full"
+              >
+                <Icon name="plus" size={15} />
+                {t('settings.addSection')}
+              </button>
+            )}
+
+            <Field label={t('settings.agreeLine')}>
+              <input
+                className="ob-input"
+                value={terms.agree_line}
+                disabled={!editable}
+                onChange={(e) => setTerms((prev) => ({ ...prev, agree_line: e.target.value }))}
+              />
+            </Field>
+          </div>
         </Card>
 
         <Card>
