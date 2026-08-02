@@ -1,7 +1,8 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { assertPermission } from '@/lib/auth'
+import { assertPermission, logEvent } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, todayKey } from '@/lib/format'
@@ -184,6 +185,67 @@ export async function deletePayment(id: string, invoiceId: string): Promise<Acti
     if (error) return { ok: false, error: error.message }
     touched(invoiceId)
     return { ok: true, message: 'Payment removed' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+/**
+ * Turns on (or rotates) the client-facing link for an invoice and returns the
+ * full URL to hand over. Regenerating kills the previous link immediately.
+ */
+export async function shareInvoice(
+  invoiceId: string,
+  options?: { regenerate?: boolean; expiresAt?: string | null },
+): Promise<ActionResult & { url?: string }> {
+  try {
+    await assertPermission(PERMISSIONS.invoicesEdit)
+    const supabase = await createClient()
+
+    const { data: token, error } = await supabase.rpc('enable_invoice_share', {
+      p_invoice: invoiceId,
+      p_expires_at: options?.expiresAt ?? null,
+      p_regenerate: options?.regenerate ?? false,
+    })
+    if (error) return { ok: false, error: error.message }
+
+    const h = await headers()
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host') ?? 'localhost:3000'}`
+
+    await logEvent({
+      action: 'invoice.shared',
+      entity: 'invoices',
+      entityId: invoiceId,
+      summary: options?.regenerate
+        ? 'Generated a new client link (the old one stopped working)'
+        : 'Created a client link for this invoice',
+    })
+
+    touched(invoiceId)
+    return { ok: true, message: 'Link ready', url: `${origin}/i/${token as string}` }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+export async function unshareInvoice(invoiceId: string): Promise<ActionResult> {
+  try {
+    await assertPermission(PERMISSIONS.invoicesEdit)
+    const supabase = await createClient()
+    const { error } = await supabase.rpc('disable_invoice_share', { p_invoice: invoiceId })
+    if (error) return { ok: false, error: error.message }
+
+    await logEvent({
+      action: 'invoice.unshared',
+      entity: 'invoices',
+      entityId: invoiceId,
+      summary: 'Withdrew the client link',
+    })
+
+    touched(invoiceId)
+    return { ok: true, message: 'Link withdrawn' }
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }

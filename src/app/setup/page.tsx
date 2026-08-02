@@ -114,7 +114,15 @@ export default function SetupPage() {
             Optionally run <code className="font-mono text-[12px]">supabase/seed.sql</code> to load the
             studio&apos;s equipment list.
           </li>
-          <li>Come back here and create your account — the first one becomes the admin.</li>
+          <li>
+            <b>Authentication → Sign In / Providers → Email</b> — uncheck{' '}
+            <b>&quot;Allow new users to sign up&quot;</b>. Accounts are issued by an admin; there is
+            no registration page.
+          </li>
+          <li>
+            <b>Authentication → Users → Add user</b> — make your own account and tick{' '}
+            <b>Auto Confirm User</b>. The first account created becomes the admin.
+          </li>
         </ol>
       </div>
 

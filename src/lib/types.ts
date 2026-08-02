@@ -224,6 +224,11 @@ export type Invoice = {
   status: InvoiceStatus
   notes: string | null
   terms: string | null
+  share_token: string | null
+  share_enabled: boolean
+  share_expires_at: string | null
+  share_views: number
+  share_last_viewed_at: string | null
   created_at: string
   updated_at: string
 }

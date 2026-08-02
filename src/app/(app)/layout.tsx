@@ -4,6 +4,8 @@ import { getSettings } from '@/lib/settings'
 import { AppProvider } from '@/components/app-context'
 import { AppShell } from '@/components/shell/shell'
 import { PresenceHeartbeat } from '@/components/presence-heartbeat'
+import { InstallPrompt } from '@/components/ios/install-prompt'
+import { PullToRefresh } from '@/components/ios/pull-to-refresh'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Fetched together rather than one after the other — the shell is on the
@@ -17,7 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppProvider viewer={viewer} settings={settings}>
       <PresenceHeartbeat />
+      <PullToRefresh />
       <AppShell>{children}</AppShell>
+      <InstallPrompt />
     </AppProvider>
   )
 }
