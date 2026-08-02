@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useApp } from '../app-context'
 import { useT } from '../lang-provider'
 import { Field, Modal, Stepper, SubmitButton, useToast } from '../ui'
+import { ClientPicker } from '../client-picker'
 import { egp, formatHour, packageBase, packageHours, todayKey, usd } from '@/lib/format'
 import { saveSession, type SessionInput } from '@/server/sessions'
 import type { Client, Gear, SessionPackage, StudioSession } from '@/lib/types'
@@ -187,45 +188,17 @@ export function BookingModal({
         )}
 
         <Field label={t('common.client')}>
-          <input
-            className="ob-input"
+          <ClientPicker
+            clients={clients}
             value={clientName}
-            onChange={(e) => {
-              setClientName(e.target.value)
-              setClientId('')
-            }}
+            clientId={clientId}
             placeholder={t('orders.clientPh')}
-            list="ob-client-list"
+            onChange={({ name, clientId: id, client }) => {
+              setClientName(name)
+              setClientId(id)
+              if (client?.phone) setPhone(client.phone)
+            }}
           />
-          <datalist id="ob-client-list">
-            {clients.map((c) => (
-              <option key={c.id} value={c.name} />
-            ))}
-          </datalist>
-          {clients.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {clients
-                .filter((c) =>
-                  clientName ? c.name.toLowerCase().includes(clientName.toLowerCase()) : true,
-                )
-                .slice(0, 4)
-                .map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      setClientName(c.name)
-                      setClientId(c.id)
-                      if (c.phone) setPhone(c.phone)
-                    }}
-                    data-on={clientId === c.id}
-                    className="ob-chip h-8 text-[11.5px]"
-                  >
-                    {c.name}
-                  </button>
-                ))}
-            </div>
-          )}
         </Field>
 
         <Field label={t('common.phone')}>

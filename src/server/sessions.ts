@@ -51,6 +51,34 @@ export async function saveSession(input: SessionInput): Promise<ActionResult> {
     if (!input.clientName?.trim()) return { ok: false, error: 'Enter a client name.' }
     if (!input.date) return { ok: false, error: 'Pick a date.' }
 
+    /*
+     * Keep the client list and the bookings joined up. A name typed at the front
+     * desk is matched to an existing client, or added as a new one — otherwise
+     * their sessions, invoices and statement all drift apart, and the
+     * autocomplete never learns anyone new.
+     */
+    let clientId = input.clientId || null
+    const clientName = input.clientName.trim()
+    if (!clientId) {
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', clientName)
+        .limit(1)
+        .maybeSingle()
+
+      if (existing) {
+        clientId = existing.id
+      } else {
+        const { data: created } = await supabase
+          .from('clients')
+          .insert({ name: clientName, phone: input.phone?.trim() || null })
+          .select('id')
+          .single()
+        clientId = created?.id ?? null
+      }
+    }
+
     // Add-on prices come from the gear table, never from the browser.
     let addonTotal = 0
     let addons: { gear_id: string; name: string; price: number }[] = []
@@ -66,8 +94,8 @@ export async function saveSession(input: SessionInput): Promise<ActionResult> {
     const priced = priceSession(input.package, input.hours, addonTotal, pricing)
 
     const row = {
-      client_id: input.clientId || null,
-      client_name: input.clientName.trim(),
+      client_id: clientId,
+      client_name: clientName,
       phone: input.phone?.trim() || null,
       shoot_type: input.shootType,
       date: input.date,

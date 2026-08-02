@@ -123,6 +123,8 @@ export type Project = {
   id: string
   client_id: string | null
   client_name: string
+  assignee_member_id: string | null
+  assignee_name: string | null
   title: string
   value: number
   total_videos: number
@@ -298,6 +300,7 @@ export type StudioSettings = {
   timezone: string
   phone: string
   instagram: string
+  auto_invoice: boolean
 }
 
 export type TermsSection = {

@@ -12,6 +12,14 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Staff should not be signed out because they left the app for a weekend.
+      // The access token still rotates hourly; this only governs how long the
+      // refresh cookie survives, which is what keeps a Home Screen app logged in.
+      cookieOptions: {
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll()

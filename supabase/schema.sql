@@ -477,8 +477,9 @@ insert into public.app_settings(key, value) values
       'branch', 'Mokattam Branch',
       'currency', 'EGP',
       'usd_rate', 48,
-      'open_hour', 9,
-      'close_hour', 23,
+      'open_hour', 0,
+      'close_hour', 24,
+      'auto_invoice', true,
       'timezone', 'Africa/Cairo',
       'phone', '01033447399',
       'instagram', '@obscura_house_')),
@@ -779,6 +780,11 @@ drop trigger if exists projects_updated_at on public.projects;
 create trigger projects_updated_at before update on public.projects
   for each row execute function public.set_updated_at();
 
+alter table public.projects add column if not exists assignee_member_id uuid;
+alter table public.projects add column if not exists assignee_name text;
+
+create index if not exists projects_assignee_idx on public.projects(assignee_member_id);
+
 create table if not exists public.team_members (
   id          uuid primary key default gen_random_uuid(),
   profile_id  uuid references public.profiles(id) on delete set null,
@@ -794,6 +800,12 @@ create table if not exists public.team_members (
 drop trigger if exists team_members_updated_at on public.team_members;
 create trigger team_members_updated_at before update on public.team_members
   for each row execute function public.set_updated_at();
+
+do $$ begin
+  alter table public.projects
+    add constraint projects_assignee_fk
+    foreign key (assignee_member_id) references public.team_members(id) on delete set null;
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.project_deliveries (
   id          uuid primary key default gen_random_uuid(),
@@ -1009,6 +1021,143 @@ drop trigger if exists payments_ledger on public.payments;
 create trigger payments_ledger after insert on public.payments
   for each row execute function public.payment_to_ledger();
 
+-- ---- every booking gets an invoice ----------------------------------------
+/**
+ * A session with no invoice is money that quietly goes uncollected, so one is
+ * raised automatically the moment a booking exists — as a draft, which is the
+ * safe state: it can be edited or deleted, and nothing is sent anywhere.
+ *
+ * Done in the database rather than the app so it holds however the booking was
+ * made — the calendar, the orders page, or a direct API call.
+ *
+ * Completing the session promotes the draft to "sent". Cancelling the session
+ * voids the invoice rather than deleting it, so the number is never reused.
+ */
+create or replace function public.session_sync_invoice()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_auto      boolean;
+  v_invoice   uuid;
+  v_client    public.clients;
+  v_label     text;
+  v_terms     text;
+begin
+  select coalesce((value->>'auto_invoice')::boolean, true) into v_auto
+    from public.app_settings where key = 'studio';
+  if not coalesce(v_auto, true) then return new; end if;
+
+  -- Is there already an invoice line pointing at this session?
+  select it.invoice_id into v_invoice
+    from public.invoice_items it
+   where it.ref_type = 'session' and it.ref_id = coalesce(new.id, old.id)
+   limit 1;
+
+  if tg_op = 'DELETE' then
+    if v_invoice is not null then
+      -- An untouched draft can go; anything that was sent or part paid is
+      -- voided instead, so the numbering and the paper trail survive.
+      if exists (select 1 from public.invoices i
+                  where i.id = v_invoice and i.status = 'draft')
+         and not exists (select 1 from public.payments p where p.invoice_id = v_invoice) then
+        delete from public.invoices where id = v_invoice;
+      else
+        update public.invoices set status = 'void' where id = v_invoice;
+      end if;
+    end if;
+    return old;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.status = 'cancelled' then return new; end if;
+
+    select * into v_client from public.clients where id = new.client_id;
+    select value->>'invoice_line' into v_terms from public.app_settings where key = 'terms';
+
+    insert into public.invoices(
+      client_id, client_name, client_company, client_phone, client_email,
+      issue_date, due_date, status, terms, notes)
+    values (
+      new.client_id, new.client_name, v_client.company,
+      coalesce(new.phone, v_client.phone), v_client.email,
+      new.date, new.date + 14, 'draft', v_terms,
+      'Studio session ' || new.code)
+    returning id into v_invoice;
+
+    insert into public.invoice_items(invoice_id, description, qty, unit_price, ref_type, ref_id, sort)
+    values (
+      v_invoice,
+      new.client_name || ' — studio session (' || new.code || ')',
+      1, new.total_amount, 'session', new.id, 0);
+
+    return new;
+  end if;
+
+  -- UPDATE from here on.
+  if v_invoice is null then return new; end if;
+
+  -- Keep a draft in step with the booking it came from.
+  if new.total_amount is distinct from old.total_amount
+     or new.client_name is distinct from old.client_name then
+    update public.invoice_items
+       set unit_price = new.total_amount,
+           description = new.client_name || ' — studio session (' || new.code || ')'
+     where ref_type = 'session' and ref_id = new.id
+       and exists (select 1 from public.invoices i
+                    where i.id = invoice_id and i.status = 'draft');
+  end if;
+
+  if new.status = 'cancelled' and old.status <> 'cancelled' then
+    update public.invoices set status = 'void'
+     where id = v_invoice and status in ('draft', 'sent');
+  elsif new.status = 'completed' and old.status <> 'completed' then
+    update public.invoices set status = 'sent' where id = v_invoice and status = 'draft';
+  end if;
+
+  return new;
+end $$;
+
+-- Runs after the pricing and overlap triggers have settled the row.
+drop trigger if exists sessions_t3_invoice on public.sessions;
+create trigger sessions_t3_invoice after insert or update or delete on public.sessions
+  for each row execute function public.session_sync_invoice();
+
+-- Bookings taken before this trigger existed still need their invoice. Runs
+-- once per session and skips any that already has one, so re-running is safe.
+do $$
+declare
+  s record;
+  v_invoice uuid;
+  v_client  public.clients;
+  v_terms   text;
+begin
+  select value->>'invoice_line' into v_terms from public.app_settings where key = 'terms';
+
+  for s in
+    select * from public.sessions
+     where status <> 'cancelled'
+       and not exists (select 1 from public.invoice_items it
+                        where it.ref_type = 'session' and it.ref_id = sessions.id)
+  loop
+    select * into v_client from public.clients where id = s.client_id;
+
+    insert into public.invoices(
+      client_id, client_name, client_company, client_phone, client_email,
+      issue_date, due_date, status, terms, notes)
+    values (
+      s.client_id, s.client_name, v_client.company,
+      coalesce(s.phone, v_client.phone), v_client.email,
+      s.date, s.date + 14,
+      (case when s.status = 'completed' then 'sent' else 'draft' end)::public.invoice_status,
+      v_terms, 'Studio session ' || s.code)
+    returning id into v_invoice;
+
+    insert into public.invoice_items(invoice_id, description, qty, unit_price, ref_type, ref_id, sort)
+    values (v_invoice, s.client_name || ' — studio session (' || s.code || ')',
+            1, s.total_amount, 'session', s.id, 0);
+  end loop;
+end $$;
+
 -- ---- shareable invoice links ----------------------------------------------
 -- A client should be able to open their invoice without an Obscura account, so
 -- each invoice can carry an unguessable token. Access is granted through one
@@ -1169,7 +1318,10 @@ $$;
 grant execute on function public.public_terms() to anon, authenticated;
 
 -- What a client owes, and what they have paid.
-create or replace view public.v_invoice_balance
+-- Dropped first: these select base_table.*, so adding a column to the table
+-- changes the view's column list, which CREATE OR REPLACE VIEW cannot do.
+drop view if exists public.v_invoice_balance cascade;
+create view public.v_invoice_balance
 with (security_invoker = on) as
   select i.*,
          coalesce(p.paid, 0)                          as paid_amount,
@@ -1558,7 +1710,10 @@ select public.attach_audit('public.user_permissions');
 -- 11. REPORTING VIEWS
 -- ============================================================================
 
-create or replace view public.v_project_progress
+-- Dropped first: these select base_table.*, so adding a column to the table
+-- changes the view's column list, which CREATE OR REPLACE VIEW cannot do.
+drop view if exists public.v_project_progress cascade;
+create view public.v_project_progress
 with (security_invoker = on) as
   select p.*,
          coalesce(d.delivered, 0)                                   as delivered,
@@ -1572,7 +1727,10 @@ with (security_invoker = on) as
         from public.project_deliveries group by project_id
     ) d on d.project_id = p.id;
 
-create or replace view public.v_member_output
+-- Dropped first: these select base_table.*, so adding a column to the table
+-- changes the view's column list, which CREATE OR REPLACE VIEW cannot do.
+drop view if exists public.v_member_output cascade;
+create view public.v_member_output
 with (security_invoker = on) as
   select m.*,
          coalesce(d.delivered, 0) as delivered,
