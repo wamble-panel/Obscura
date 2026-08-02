@@ -30,6 +30,7 @@ import {
   setUserActive,
   setUserPermission,
   setUserRole,
+  setUserSuspended,
 } from '@/server/users'
 import type { PermissionRow, PresenceRow, Profile, Role } from '@/lib/types'
 
@@ -71,6 +72,8 @@ export function UsersView({
   const [fullName, setFullName] = useState('')
   const [roleKey, setRoleKey] = useState('coordinator')
   const [password, setPassword] = useState('')
+  const [suspendFor, setSuspendFor] = useState<Profile | null>(null)
+  const [suspendReason, setSuspendReason] = useState('')
 
   const modules = useMemo(() => {
     const map = new Map<string, PermissionRow[]>()
@@ -225,7 +228,11 @@ export function UsersView({
                       {p.id === viewer.profile.id && (
                         <Badge tone="neutral">{t('common.you')}</Badge>
                       )}
-                      {!p.is_active && <Badge tone="warn">{t('users.pending')}</Badge>}
+                      {p.status === 'suspended' ? (
+                        <Badge tone="bad">{t('users.suspended')}</Badge>
+                      ) : (
+                        !p.is_active && <Badge tone="warn">{t('users.pending')}</Badge>
+                      )}
                       {overrides > 0 && (
                         <Badge tone="gold">
                           <span className="ob-ltr">{overrides}</span> {t('users.override')}
@@ -317,14 +324,38 @@ export function UsersView({
           selected &&
           selected.id !== viewer.profile.id && (
             <>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => run(() => setUserActive(selected.id, !selected.is_active))}
-                className={`ob-btn flex-1 ${selected.is_active ? 'ob-btn-ghost' : 'ob-btn-primary'}`}
-              >
-                {selected.is_active ? t('users.deactivate') : t('users.activate')}
-              </button>
+              {selected.status === 'suspended' ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(() => setUserSuspended(selected.id, false))}
+                  className="ob-btn ob-btn-primary flex-1"
+                >
+                  {t('users.reinstate')}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run(() => setUserActive(selected.id, !selected.is_active))}
+                    className={`ob-btn flex-1 ${selected.is_active ? 'ob-btn-ghost' : 'ob-btn-primary'}`}
+                  >
+                    {selected.is_active ? t('users.deactivate') : t('users.activate')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setSuspendReason('')
+                      setSuspendFor(selected)
+                    }}
+                    className="ob-btn ob-btn-danger flex-1"
+                  >
+                    {t('users.suspend')}
+                  </button>
+                </>
+              )}
               <ConfirmButton
                 onConfirm={() =>
                   start(async () => {
@@ -369,10 +400,28 @@ export function UsersView({
               <div className="ob-tile px-3.5 py-3">
                 <div className="ob-label">{t('common.status')}</div>
                 <div className="mt-0.5 text-[12.5px] font-bold">
-                  {selected.is_active ? t('users.active') : t('users.inactive')}
+                  {selected.status === 'suspended'
+                    ? t('users.suspended')
+                    : selected.is_active
+                      ? t('users.active')
+                      : t('users.inactive')}
                 </div>
               </div>
             </div>
+
+            {selected.status === 'suspended' && (
+              <div className="mt-3 rounded-xl border border-clay/25 bg-clay/8 px-4 py-3">
+                <div className="ob-label text-clay">{t('users.suspendedOn')}</div>
+                <div className="ob-ltr mt-0.5 text-[12.5px] font-bold">
+                  {timeAgo(selected.suspended_at, lang)}
+                </div>
+                {selected.suspended_reason && (
+                  <div className="mt-1 text-[12px] font-semibold text-ink/60">
+                    {selected.suspended_reason}
+                  </div>
+                )}
+              </div>
+            )}
 
             {selected.id === viewer.profile.id && (
               <div className="mt-4 rounded-xl bg-gold/12 px-4 py-3 text-[12px] font-semibold text-olive">
@@ -472,6 +521,62 @@ export function UsersView({
           </>
         )}
       </Drawer>
+
+      {/* ------------------------------ suspend ------------------------------ */}
+      <Modal
+        open={Boolean(suspendFor)}
+        onClose={() => setSuspendFor(null)}
+        title={t('users.suspend')}
+        subtitle={suspendFor?.full_name ?? suspendFor?.email}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setSuspendFor(null)}
+              className="ob-btn ob-btn-ghost flex-1"
+            >
+              {t('common.cancel')}
+            </button>
+            <SubmitButton
+              type="button"
+              variant="danger"
+              pending={pending}
+              onClick={() => {
+                if (!suspendFor) return
+                start(async () => {
+                  const result = await setUserSuspended(suspendFor.id, true, suspendReason)
+                  toast(
+                    result.ok
+                      ? (result.message ?? t('toast.saved'))
+                      : (result.error ?? t('toast.error')),
+                    result.ok ? 'ok' : 'error',
+                  )
+                  if (result.ok) {
+                    setSuspendFor(null)
+                    setSelectedId(null)
+                  }
+                })
+              }}
+              className="flex-[1.6]"
+            >
+              {t('users.suspend')}
+            </SubmitButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4 pb-4">
+          <div className="rounded-xl bg-clay/10 px-4 py-3 text-[12.5px] font-semibold text-clay">
+            {t('users.suspendHint')}
+          </div>
+          <Field label={t('users.suspendReason')} hint={t('common.optional')}>
+            <input
+              className="ob-input"
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+            />
+          </Field>
+        </div>
+      </Modal>
 
       {/* ------------------------------ invite ------------------------------ */}
       <Modal

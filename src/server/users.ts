@@ -152,6 +152,142 @@ export async function setUserActive(userId: string, isActive: boolean): Promise<
 }
 
 /**
+ * Suspending is heavier than deactivating: it records who did it and why, and
+ * takes effect on the next request because every permission check reads
+ * `is_active`, which the database keeps in step with `status`.
+ */
+export async function setUserSuspended(
+  userId: string,
+  suspended: boolean,
+  reason?: string,
+): Promise<ActionResult> {
+  try {
+    const viewer = await assertPermission(PERMISSIONS.usersManage)
+    if (viewer.profile.id === userId) {
+      return { ok: false, error: 'You cannot suspend your own account.' }
+    }
+    if (suspended && (await wouldOrphanAdmins(userId))) {
+      return { ok: false, error: 'This is the only active admin.' }
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from('profiles')
+      .update(
+        suspended
+          ? {
+              status: 'suspended',
+              suspended_reason: reason?.trim() || null,
+              suspended_by: viewer.profile.id,
+            }
+          : { status: 'active' },
+      )
+      .eq('id', userId)
+
+    if (error) return { ok: false, error: error.message }
+
+    if (suspended) {
+      // Drop them off the presence board straight away.
+      await supabase.from('user_presence').delete().eq('user_id', userId)
+
+      // Kill their refresh tokens so the current browser session cannot be
+      // extended. Their access token expires within the hour regardless, and
+      // every query they make until then already fails the permission checks.
+      if (hasServiceRole()) {
+        try {
+          await createAdminClient().auth.admin.signOut(userId, 'global')
+        } catch {
+          // Older API versions don't expose this; the is_active gate still holds.
+        }
+      }
+    }
+
+    await logEvent({
+      action: suspended ? 'users.suspend' : 'users.reinstate',
+      entity: 'profiles',
+      entityId: userId,
+      summary: suspended
+        ? `Suspended the account${reason ? ` — ${reason}` : ''}`
+        : 'Lifted the suspension',
+      severity: 'critical',
+    })
+
+    touched()
+    return { ok: true, message: suspended ? 'Account suspended' : 'Account reinstated' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+/**
+ * Creates a login for someone already on the team, and links the two records so
+ * their deliveries and their account are the same person.
+ */
+export async function createAccountForMember(input: {
+  memberId: string
+  email: string
+  roleKey: string
+  password: string
+}): Promise<ActionResult> {
+  try {
+    await assertPermission(PERMISSIONS.usersManage)
+
+    if (!hasServiceRole()) {
+      return {
+        ok: false,
+        error:
+          'Creating accounts needs SUPABASE_SERVICE_ROLE_KEY. Without it, ask them to sign up on the login page and approve them in Users & access.',
+      }
+    }
+    if (input.password.length < 8) {
+      return { ok: false, error: 'Use at least 8 characters for the password.' }
+    }
+
+    const supabase = await createClient()
+    const { data: member } = await supabase
+      .from('team_members')
+      .select('id, name, profile_id')
+      .eq('id', input.memberId)
+      .single()
+
+    if (!member) return { ok: false, error: 'That team member no longer exists.' }
+    if (member.profile_id) return { ok: false, error: 'They already have an account.' }
+
+    const email = input.email.trim().toLowerCase()
+    const admin = createAdminClient()
+
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: { full_name: member.name, role_key: input.roleKey, is_active: true },
+    })
+    if (error) return { ok: false, error: error.message }
+
+    await admin
+      .from('profiles')
+      .update({ role_key: input.roleKey, status: 'active', full_name: member.name })
+      .eq('id', data.user.id)
+
+    await admin.from('team_members').update({ profile_id: data.user.id }).eq('id', input.memberId)
+
+    await logEvent({
+      action: 'users.invite',
+      entity: 'profiles',
+      entityId: data.user.id,
+      summary: `Created an account for ${member.name} (${email}) as ${input.roleKey}`,
+      severity: 'critical',
+    })
+
+    revalidatePath('/team')
+    touched()
+    return { ok: true, message: 'Account created' }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message }
+  }
+}
+
+/**
  * Grants or revokes one permission for one person, on top of whatever their
  * role gives them. Passing `null` clears the override.
  */

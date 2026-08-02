@@ -87,9 +87,34 @@ async function main() {
   await sharp(await square(mark, 180, 0.54, SAND)).toFile(resolve(ICONS, 'apple-touch-icon.png'))
   await sharp(await square(mark, 32, 0.72, SAND)).toFile(resolve(ICONS, 'favicon-32.png'))
 
-  // --- iOS launch screen ---------------------------------------------------
+  // --- iOS launch screens --------------------------------------------------
+  // iOS only shows a launch image when one matches the device exactly, so a
+  // handful of sizes covers the phones the studio actually uses. Without these
+  // the app opens on a blank white flash instead of the Obscura mark.
+  const SPLASHES = [
+    { w: 1179, h: 2556, name: 'splash-1179x2556.png' }, // iPhone 15/16 Pro
+    { w: 1290, h: 2796, name: 'splash-1290x2796.png' }, // Pro Max
+    { w: 1170, h: 2532, name: 'splash-1170x2532.png' }, // 12/13/14
+    { w: 1125, h: 2436, name: 'splash-1125x2436.png' }, // X/XS/11 Pro
+    { w: 828, h: 1792, name: 'splash-828x1792.png' }, // XR/11
+    { w: 750, h: 1334, name: 'splash-750x1334.png' }, // SE
+  ]
+
+  for (const s of SPLASHES) {
+    const logoWidth = Math.round(s.w * 0.52)
+    const logo = await sharp(lockup)
+      .resize(logoWidth, null, { fit: 'inside', background: TRANSPARENT })
+      .png()
+      .toBuffer()
+    await sharp({ create: { width: s.w, height: s.h, channels: 4, background: SAND } })
+      .composite([{ input: logo, gravity: 'centre' }])
+      .png()
+      .toFile(resolve(ICONS, s.name))
+  }
+
+  // Kept for the manifest / anything expecting a single generic splash.
   const splashLogo = await sharp(lockup)
-    .resize(760, 760, { fit: 'inside', background: TRANSPARENT })
+    .resize(608, null, { fit: 'inside', background: TRANSPARENT })
     .png()
     .toBuffer()
   await sharp({ create: { width: 1170, height: 2532, channels: 4, background: SAND } })

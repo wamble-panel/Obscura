@@ -78,6 +78,64 @@ drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at before update on public.profiles
   for each row execute function public.set_updated_at();
 
+-- Account state. `is_active` stays the single gate every policy checks; `status`
+-- is what the UI shows and is what an admin actually sets.
+alter table public.profiles add column if not exists status text not null default 'pending';
+alter table public.profiles add column if not exists suspended_at timestamptz;
+alter table public.profiles add column if not exists suspended_reason text;
+alter table public.profiles add column if not exists suspended_by uuid;
+
+do $$ begin
+  alter table public.profiles
+    add constraint profiles_status_check
+    check (status in ('active', 'pending', 'suspended'));
+exception when duplicate_object then null; end $$;
+
+-- Existing rows predate `status`, so derive it once from is_active.
+update public.profiles
+   set status = case when is_active then 'active' else 'pending' end
+ where status is null or (is_active and status <> 'active');
+
+-- Keep the two in step whichever one is written, so a suspension takes effect
+-- everywhere immediately — including row level security.
+create or replace function public.sync_profile_status()
+returns trigger language plpgsql as $$
+begin
+  if tg_op = 'INSERT' then
+    -- Callers may set either field; an explicit is_active wins over the
+    -- 'pending' default so the first-admin bootstrap keeps working.
+    if new.status = 'active' or new.is_active then
+      new.status := 'active';
+      new.is_active := true;
+    else
+      new.is_active := false;
+    end if;
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    new.is_active := (new.status = 'active');
+  elsif new.is_active is distinct from old.is_active then
+    new.status := case when new.is_active then 'active'
+                       when old.status = 'suspended' then 'suspended'
+                       else 'pending' end;
+  end if;
+
+  if new.status = 'suspended' and old.status <> 'suspended' then
+    new.suspended_at := now();
+  elsif new.status <> 'suspended' then
+    new.suspended_at := null;
+    new.suspended_reason := null;
+    new.suspended_by := null;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists profiles_sync_status on public.profiles;
+create trigger profiles_sync_status before insert or update on public.profiles
+  for each row execute function public.sync_profile_status();
+
 -- People may edit their own name, phone and avatar — but nothing that decides
 -- what they are allowed to do. Row level security can't restrict individual
 -- columns, so this guards them directly.
@@ -88,7 +146,8 @@ declare
   v_manager boolean;
 begin
   if new.role_key is not distinct from old.role_key
-     and new.is_active is not distinct from old.is_active then
+     and new.is_active is not distinct from old.is_active
+     and new.status is not distinct from old.status then
     return new;
   end if;
 
@@ -108,6 +167,7 @@ begin
   if auth.uid() is not null and not v_manager then
     new.role_key  := old.role_key;
     new.is_active := old.is_active;
+    new.status    := old.status;
   end if;
 
   return new;
@@ -762,6 +822,176 @@ drop trigger if exists payroll_updated_at on public.payroll;
 create trigger payroll_updated_at before update on public.payroll
   for each row execute function public.set_updated_at();
 
+-- ---- invoices, items and payments ------------------------------------------
+do $$ begin
+  create type public.invoice_status as enum ('draft', 'sent', 'partial', 'paid', 'void');
+exception when duplicate_object then null; end $$;
+
+create sequence if not exists public.invoice_number_seq start 1001;
+
+create table if not exists public.invoices (
+  id             uuid primary key default gen_random_uuid(),
+  number         text not null unique default ('INV-' || nextval('public.invoice_number_seq')),
+  client_id      uuid references public.clients(id) on delete set null,
+  client_name    text not null,
+  client_company text,
+  client_phone   text,
+  client_email   text,
+  client_address text,
+  issue_date     date not null default current_date,
+  due_date       date,
+  subtotal       numeric(12,2) not null default 0,
+  discount       numeric(12,2) not null default 0 check (discount >= 0),
+  tax_rate       numeric(5,2)  not null default 0 check (tax_rate >= 0),
+  tax_amount     numeric(12,2) not null default 0,
+  total          numeric(12,2) not null default 0,
+  status         public.invoice_status not null default 'draft',
+  notes          text,
+  terms          text,
+  created_by     uuid references public.profiles(id),
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index if not exists invoices_client_idx on public.invoices(client_id);
+create index if not exists invoices_status_idx on public.invoices(status);
+create index if not exists invoices_issue_idx  on public.invoices(issue_date desc);
+
+drop trigger if exists invoices_updated_at on public.invoices;
+create trigger invoices_updated_at before update on public.invoices
+  for each row execute function public.set_updated_at();
+
+create table if not exists public.invoice_items (
+  id          uuid primary key default gen_random_uuid(),
+  invoice_id  uuid not null references public.invoices(id) on delete cascade,
+  description text not null,
+  qty         numeric(10,2) not null default 1 check (qty > 0),
+  unit_price  numeric(12,2) not null default 0,
+  amount      numeric(12,2) not null default 0,
+  ref_type    text,                       -- session | rental | project | custom
+  ref_id      uuid,
+  sort        int not null default 0,
+  created_at  timestamptz not null default now()
+);
+create index if not exists invoice_items_invoice_idx on public.invoice_items(invoice_id);
+
+create table if not exists public.payments (
+  id          uuid primary key default gen_random_uuid(),
+  invoice_id  uuid references public.invoices(id) on delete cascade,
+  client_id   uuid references public.clients(id) on delete set null,
+  client_name text,
+  amount      numeric(12,2) not null check (amount > 0),
+  method      text not null default 'cash',   -- cash | instapay | bank | wallet | card
+  paid_at     date not null default current_date,
+  reference   text,
+  notes       text,
+  -- Invoices usually bill for sessions that finance already counts, so posting
+  -- to the ledger is opt-in and would otherwise double-count the revenue.
+  post_to_ledger boolean not null default false,
+  created_by  uuid references public.profiles(id),
+  created_at  timestamptz not null default now()
+);
+create index if not exists payments_invoice_idx on public.payments(invoice_id);
+create index if not exists payments_client_idx  on public.payments(client_id);
+create index if not exists payments_date_idx    on public.payments(paid_at desc);
+
+-- Totals are derived from the line items, never from the browser.
+create or replace function public.recalc_invoice(p_invoice uuid)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_sub  numeric(12,2);
+  v_inv  public.invoices;
+  v_paid numeric(12,2);
+  v_total numeric(12,2);
+  v_tax  numeric(12,2);
+begin
+  select * into v_inv from public.invoices where id = p_invoice;
+  if v_inv is null then return; end if;
+
+  select coalesce(sum(round(qty * unit_price, 2)), 0) into v_sub
+    from public.invoice_items where invoice_id = p_invoice;
+
+  v_tax   := round(greatest(v_sub - v_inv.discount, 0) * v_inv.tax_rate / 100, 2);
+  v_total := greatest(v_sub - v_inv.discount, 0) + v_tax;
+
+  select coalesce(sum(amount), 0) into v_paid
+    from public.payments where invoice_id = p_invoice;
+
+  update public.invoices set
+    subtotal   = v_sub,
+    tax_amount = v_tax,
+    total      = v_total,
+    status = case
+               when status = 'void'  then 'void'
+               when status = 'draft' and v_paid = 0 then 'draft'
+               when v_total > 0 and v_paid >= v_total then 'paid'
+               when v_paid > 0 then 'partial'
+               when status = 'paid' or status = 'partial' then 'sent'
+               else status
+             end
+  where id = p_invoice;
+end $$;
+
+create or replace function public.invoice_item_changed()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op <> 'DELETE' then
+    new.amount := round(new.qty * new.unit_price, 2);
+  end if;
+  return coalesce(new, old);
+end $$;
+
+drop trigger if exists invoice_items_amount on public.invoice_items;
+create trigger invoice_items_amount before insert or update on public.invoice_items
+  for each row execute function public.invoice_item_changed();
+
+create or replace function public.invoice_touch_totals()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  perform public.recalc_invoice(coalesce(new.invoice_id, old.invoice_id));
+  return coalesce(new, old);
+end $$;
+
+drop trigger if exists invoice_items_recalc on public.invoice_items;
+create trigger invoice_items_recalc after insert or update or delete on public.invoice_items
+  for each row execute function public.invoice_touch_totals();
+
+drop trigger if exists payments_recalc on public.payments;
+create trigger payments_recalc after insert or update or delete on public.payments
+  for each row execute function public.invoice_touch_totals();
+
+-- Optional: mirror a payment into the finance ledger.
+create or replace function public.payment_to_ledger()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_label text;
+begin
+  if not new.post_to_ledger then return new; end if;
+  select 'Payment — ' || coalesce(i.number, new.client_name, 'client')
+    into v_label from public.invoices i where i.id = new.invoice_id;
+
+  insert into public.ledger_entries(type, category, label, amount, date, method, ref_type, ref_id)
+  values ('in', 'Invoice', coalesce(v_label, 'Payment received'), new.amount,
+          new.paid_at, new.method, 'payment', new.id);
+  return new;
+end $$;
+
+drop trigger if exists payments_ledger on public.payments;
+create trigger payments_ledger after insert on public.payments
+  for each row execute function public.payment_to_ledger();
+
+-- What a client owes, and what they have paid.
+create or replace view public.v_invoice_balance
+with (security_invoker = on) as
+  select i.*,
+         coalesce(p.paid, 0)                          as paid_amount,
+         greatest(i.total - coalesce(p.paid, 0), 0)   as balance,
+         (select count(*) from public.invoice_items it where it.invoice_id = i.id) as item_count
+    from public.invoices i
+    left join (
+      select invoice_id, sum(amount) as paid
+        from public.payments where invoice_id is not null group by invoice_id
+    ) p on p.invoice_id = i.id;
+
 -- ============================================================================
 -- 7. SEED ROLES & PERMISSIONS
 -- ============================================================================
@@ -822,12 +1052,21 @@ insert into public.permissions(key, module, label, description, sort) values
   ('users.view',     'users',     'View users',            'See who has an account.',                  95),
   ('users.manage',   'users',     'Manage users & access', 'Invite, activate, and set permissions.',   96),
 
+  ('invoices.view',   'invoices', 'View invoices',         'See invoices and client statements.',      64),
+  ('invoices.create', 'invoices', 'Create invoices',       'Raise a new invoice.',                     65),
+  ('invoices.edit',   'invoices', 'Edit invoices',         'Change or send an invoice.',               66),
+  ('invoices.delete', 'invoices', 'Delete invoices',       'Void or remove an invoice.',               67),
+  ('invoices.pay',    'invoices', 'Record payments',       'Mark money as received.',                  68),
+
   ('audit.view',     'audit',     'View audit log',        'See every action taken in the system.',    98)
 on conflict (key) do update
   set module = excluded.module, label = excluded.label,
       description = excluded.description, sort = excluded.sort;
 
 -- Default permission sets per role (admin is implicit — it always has everything).
+--
+-- Only seeds a role that has no permissions yet, so re-running this file never
+-- wipes out permissions you have tuned in Users & access.
 do $$
 declare
   r record;
@@ -842,6 +1081,7 @@ begin
         'projects.view','projects.create','projects.edit','projects.delete','projects.deliver',
         'clients.view','clients.create','clients.edit','clients.delete',
         'finance.view','finance.create','finance.edit',
+        'invoices.view','invoices.create','invoices.edit','invoices.delete','invoices.pay',
         'team.view','team.create','team.edit','team.payroll',
         'settings.view','settings.edit','users.view']),
       ('coordinator', array[
@@ -851,10 +1091,12 @@ begin
         'gear.view','gear.edit',
         'projects.view',
         'clients.view','clients.create','clients.edit',
+        'invoices.view','invoices.create',
         'team.view']),
       ('accountant', array[
         'dashboard.view','orders.view','rentals.view','projects.view','clients.view',
         'finance.view','finance.create','finance.edit','finance.delete',
+        'invoices.view','invoices.create','invoices.edit','invoices.delete','invoices.pay',
         'team.view','team.payroll','settings.view']),
       ('editor', array[
         'dashboard.view','projects.view','projects.deliver','orders.view','team.view']),
@@ -864,10 +1106,11 @@ begin
         'dashboard.view','orders.view'])
     ) as t(role_key, perms)
   loop
-    delete from public.role_permissions where role_key = r.role_key;
-    insert into public.role_permissions(role_key, permission_key)
-      select r.role_key, unnest(r.perms)
-      on conflict do nothing;
+    if not exists (select 1 from public.role_permissions where role_key = r.role_key) then
+      insert into public.role_permissions(role_key, permission_key)
+        select r.role_key, unnest(r.perms)
+        on conflict do nothing;
+    end if;
   end loop;
 end $$;
 
@@ -902,8 +1145,9 @@ begin
     end if;
   end if;
 
-  insert into public.profiles(id, email, full_name, role_key, is_active)
-  values (new.id, new.email, v_name, v_role, v_active)
+  insert into public.profiles(id, email, full_name, role_key, is_active, status)
+  values (new.id, new.email, v_name, v_role, v_active,
+          case when v_active then 'active' else 'pending' end)
   on conflict (id) do update set email = excluded.email;
 
   insert into public.audit_log(actor_id, actor_email, actor_name, action, entity, entity_id,
@@ -960,6 +1204,9 @@ alter table public.project_deliveries enable row level security;
 alter table public.team_members     enable row level security;
 alter table public.ledger_entries   enable row level security;
 alter table public.payroll          enable row level security;
+alter table public.invoices         enable row level security;
+alter table public.invoice_items    enable row level security;
+alter table public.payments         enable row level security;
 
 -- Generates the four standard policies for a table from a permission module.
 create or replace function public.apply_crud_policies(tbl text, module text)
@@ -989,6 +1236,22 @@ select public.apply_crud_policies('rentals',  'rentals');
 select public.apply_crud_policies('projects', 'projects');
 select public.apply_crud_policies('team_members', 'team');
 select public.apply_crud_policies('ledger_entries', 'finance');
+select public.apply_crud_policies('invoices',      'invoices');
+select public.apply_crud_policies('invoice_items', 'invoices');
+
+-- payments: seen with invoices.view, recorded with invoices.pay
+drop policy if exists payments_select on public.payments;
+drop policy if exists payments_insert on public.payments;
+drop policy if exists payments_update on public.payments;
+drop policy if exists payments_delete on public.payments;
+create policy payments_select on public.payments for select to authenticated
+  using (public.has_perm('invoices.view'));
+create policy payments_insert on public.payments for insert to authenticated
+  with check (public.has_perm('invoices.pay'));
+create policy payments_update on public.payments for update to authenticated
+  using (public.has_perm('invoices.pay')) with check (public.has_perm('invoices.pay'));
+create policy payments_delete on public.payments for delete to authenticated
+  using (public.has_perm('invoices.delete'));
 
 -- project_deliveries: view with projects.view, write with projects.deliver
 drop policy if exists deliveries_select on public.project_deliveries;
@@ -1090,6 +1353,9 @@ select public.attach_audit('public.project_deliveries');
 select public.attach_audit('public.team_members');
 select public.attach_audit('public.ledger_entries');
 select public.attach_audit('public.payroll');
+select public.attach_audit('public.invoices');
+select public.attach_audit('public.invoice_items');
+select public.attach_audit('public.payments');
 select public.attach_audit('public.app_settings');
 select public.attach_audit('public.profiles');
 select public.attach_audit('public.role_permissions');

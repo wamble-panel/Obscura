@@ -12,6 +12,8 @@ import { useLang, useT } from '../lang-provider'
 import { Icon, type IconName } from '../icons'
 import { Avatar } from '../ui'
 import { SignOutButton } from '../sign-out-button'
+import { LinkPending, LinkPendingBar } from '../nav/link-pending'
+import { RouteProgress } from '../nav/route-progress'
 
 function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + '/')
@@ -31,6 +33,7 @@ function NavLink({
     <Link
       href={item.href}
       onClick={onClick}
+      prefetch
       aria-current={active ? 'page' : undefined}
       className={clsx(
         'flex items-center gap-3 rounded-[11px] px-3 py-2.5 text-[13.5px] font-semibold transition-colors',
@@ -41,6 +44,7 @@ function NavLink({
     >
       <Icon name={item.icon as IconName} size={17} />
       {t(item.labelKey)}
+      <LinkPending />
     </Link>
   )
 }
@@ -73,6 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-dvh flex-col lg:flex-row">
+      <RouteProgress />
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.04]"
@@ -200,11 +205,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               className={clsx(
-                'flex flex-1 flex-col items-center gap-1 py-0.5 text-[10.5px] font-bold',
+                'relative flex flex-1 flex-col items-center gap-1 py-0.5 text-[10.5px] font-bold',
                 active ? 'text-ink' : 'text-ink/40',
               )}
             >
+              <LinkPendingBar />
               <Icon name={item.icon as IconName} size={20} strokeWidth={active ? 2.2 : 1.75} />
               {t(item.labelKey)}
             </Link>

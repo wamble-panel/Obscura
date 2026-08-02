@@ -6,6 +6,8 @@ export type SessionStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
 export type RentalStatus = 'active' | 'returned' | 'overdue' | 'cancelled'
 export type LedgerType = 'in' | 'out'
 
+export type AccountStatus = 'active' | 'pending' | 'suspended'
+
 export type Profile = {
   id: string
   email: string
@@ -14,6 +16,10 @@ export type Profile = {
   avatar_url: string | null
   role_key: RoleKey
   is_active: boolean
+  status: AccountStatus
+  suspended_at: string | null
+  suspended_reason: string | null
+  suspended_by: string | null
   title: string | null
   created_at: string
   updated_at: string
@@ -183,6 +189,63 @@ export type PayrollRow = {
   paid_at: string | null
   paid_by: string | null
   notes: string | null
+}
+
+export type InvoiceStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'void'
+
+export type InvoiceItem = {
+  id: string
+  invoice_id: string
+  description: string
+  qty: number
+  unit_price: number
+  amount: number
+  ref_type: string | null
+  ref_id: string | null
+  sort: number
+}
+
+export type Invoice = {
+  id: string
+  number: string
+  client_id: string | null
+  client_name: string
+  client_company: string | null
+  client_phone: string | null
+  client_email: string | null
+  client_address: string | null
+  issue_date: string
+  due_date: string | null
+  subtotal: number
+  discount: number
+  tax_rate: number
+  tax_amount: number
+  total: number
+  status: InvoiceStatus
+  notes: string | null
+  terms: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type InvoiceBalance = Invoice & {
+  paid_amount: number
+  balance: number
+  item_count: number
+}
+
+export type Payment = {
+  id: string
+  invoice_id: string | null
+  client_id: string | null
+  client_name: string | null
+  amount: number
+  method: string
+  paid_at: string
+  reference: string | null
+  notes: string | null
+  post_to_ledger: boolean
+  created_at: string
 }
 
 export type AuditEntry = {
