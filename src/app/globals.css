@@ -52,6 +52,14 @@
   0%, 100% { opacity: 0.45; }
   50%      { opacity: 1; }
 }
+@keyframes navSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes markBreathe {
+  0%, 100% { opacity: 0.25; transform: scale(0.96); }
+  50%      { opacity: 0.6;  transform: scale(1); }
+}
 
 /* ==========================================================================
    Base

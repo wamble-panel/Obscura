@@ -18,19 +18,24 @@ import {
   useToast,
 } from '@/components/ui'
 import { Icon } from '@/components/icons'
-import { PERMISSIONS } from '@/lib/permissions'
+import { PERMISSIONS, ROLE_ORDER } from '@/lib/permissions'
 import { egp, monthPeriod } from '@/lib/format'
 import { deleteMember, paySalary, saveMember } from '@/server/team'
+import { createAccountForMember } from '@/server/users'
 import type { MemberOutput, PayrollRow, Profile } from '@/lib/types'
 
 export function TeamView({
   members,
   payroll,
   profiles,
+  canManageUsers,
+  serviceRoleAvailable,
 }: {
   members: MemberOutput[]
   payroll: PayrollRow[]
   profiles: Profile[]
+  canManageUsers: boolean
+  serviceRoleAvailable: boolean
 }) {
   const t = useT()
   const toast = useToast()
@@ -47,6 +52,21 @@ export function TeamView({
   const [perVideo, setPerVideo] = useState(200)
   const [phone, setPhone] = useState('')
   const [profileId, setProfileId] = useState('')
+
+  const [accountFor, setAccountFor] = useState<MemberOutput | null>(null)
+  const [accountEmail, setAccountEmail] = useState('')
+  const [accountRole, setAccountRole] = useState('editor')
+  const [accountPassword, setAccountPassword] = useState('')
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    const bytes = new Uint32Array(14)
+    crypto.getRandomValues(bytes)
+    setAccountPassword([...bytes].map((b) => chars[b % chars.length]).join(''))
+  }
+
+  const profileFor = (member: MemberOutput) =>
+    member.profile_id ? profiles.find((p) => p.id === member.profile_id) : undefined
 
   const period = monthPeriod()
   const paidThisMonth = new Set(
@@ -162,6 +182,52 @@ export function TeamView({
                   <Badge tone={paid ? 'ink' : 'warn'}>{paid ? t('team.paid') : t('team.unpaid')}</Badge>
                 </div>
 
+                {(() => {
+                  const account = profileFor(m)
+                  if (account) {
+                    return (
+                      <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink/4 px-3 py-2">
+                        <Icon name="shield" size={14} className="flex-shrink-0 text-ink/40" />
+                        <span className="ob-ltr min-w-0 flex-1 truncate text-[11.5px] font-semibold text-ink/55">
+                          {account.email}
+                        </span>
+                        <Badge
+                          tone={
+                            account.status === 'suspended'
+                              ? 'bad'
+                              : account.is_active
+                                ? 'good'
+                                : 'warn'
+                          }
+                        >
+                          {account.status === 'suspended'
+                            ? t('users.suspended')
+                            : account.is_active
+                              ? t('users.active')
+                              : t('users.pending')}
+                        </Badge>
+                      </div>
+                    )
+                  }
+                  if (!canManageUsers) return null
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setAccountEmail('')
+                        setAccountRole('editor')
+                        generatePassword()
+                        setAccountFor(m)
+                      }}
+                      className="mt-3 flex w-full items-center gap-2 rounded-xl border border-dashed border-ink/20 px-3 py-2 text-[11.5px] font-bold text-ink/50 transition-colors hover:border-ink/35 hover:text-ink"
+                    >
+                      <Icon name="plus" size={13} />
+                      {t('users.createAccount')}
+                    </button>
+                  )
+                })()}
+
                 <div className="mt-4 grid grid-cols-2 gap-2.5">
                   <div className="ob-tile px-3.5 py-3">
                     <div className="ob-label">{t('team.delivered')}</div>
@@ -221,6 +287,108 @@ export function TeamView({
           })}
         </div>
       )}
+
+      {/* ------------------------- create a login ------------------------- */}
+      <Modal
+        open={Boolean(accountFor)}
+        onClose={() => setAccountFor(null)}
+        title={t('users.createAccount')}
+        subtitle={accountFor?.name}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setAccountFor(null)}
+              className="ob-btn ob-btn-ghost flex-1"
+            >
+              {t('common.cancel')}
+            </button>
+            <SubmitButton
+              type="button"
+              pending={pending}
+              disabled={!accountEmail.trim() || accountPassword.length < 8}
+              onClick={() => {
+                if (!accountFor) return
+                setError(null)
+                start(async () => {
+                  const result = await createAccountForMember({
+                    memberId: accountFor.id,
+                    email: accountEmail,
+                    roleKey: accountRole,
+                    password: accountPassword,
+                  })
+                  if (result.ok) {
+                    toast(t('users.inviteSent'))
+                    setAccountFor(null)
+                  } else {
+                    setError(result.error ?? t('toast.error'))
+                  }
+                })
+              }}
+              className="flex-[1.6]"
+            >
+              {t('common.confirm')}
+            </SubmitButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4 pb-4">
+          {!serviceRoleAvailable && (
+            <div className="rounded-xl bg-gold/12 px-4 py-3 text-[12px] font-semibold text-olive">
+              Add <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code> to create logins from
+              here. Until then they can sign up on the login page and you approve them.
+            </div>
+          )}
+          {error && (
+            <div className="rounded-xl bg-clay/10 px-4 py-3 text-[12.5px] font-semibold text-clay">
+              {error}
+            </div>
+          )}
+          <Field label={t('common.email')}>
+            <input
+              className="ob-input"
+              type="email"
+              value={accountEmail}
+              onChange={(e) => setAccountEmail(e.target.value)}
+              dir="ltr"
+            />
+          </Field>
+          <Field label={t('users.role')}>
+            <select
+              className="ob-input"
+              value={accountRole}
+              onChange={(e) => setAccountRole(e.target.value)}
+            >
+              {ROLE_ORDER.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label={t('users.tempPassword')}
+            hint="Share this with them — they can change it later."
+          >
+            <div className="flex gap-2">
+              <input
+                className="ob-input font-mono"
+                value={accountPassword}
+                onChange={(e) => setAccountPassword(e.target.value)}
+                dir="ltr"
+              />
+              <button
+                type="button"
+                onClick={generatePassword}
+                className="ob-btn ob-btn-ghost h-11 w-11 flex-shrink-0 px-0"
+                aria-label="regenerate"
+              >
+                <Icon name="refresh" size={15} />
+              </button>
+            </div>
+          </Field>
+        </div>
+      </Modal>
 
       <Modal
         open={formOpen}

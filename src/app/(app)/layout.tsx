@@ -1,12 +1,18 @@
-import { requireViewer } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { getViewer } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
 import { AppProvider } from '@/components/app-context'
 import { AppShell } from '@/components/shell/shell'
 import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const viewer = await requireViewer()
-  const settings = await getSettings()
+  // Fetched together rather than one after the other — the shell is on the
+  // critical path for every single page, so a serial round trip here is a
+  // delay the whole app pays.
+  const [viewer, settings] = await Promise.all([getViewer(), getSettings()])
+
+  if (!viewer) redirect('/login')
+  if (!viewer.profile.is_active) redirect('/pending')
 
   return (
     <AppProvider viewer={viewer} settings={settings}>

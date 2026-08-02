@@ -33,6 +33,12 @@ export const PERMISSIONS = {
   clientsEdit: 'clients.edit',
   clientsDelete: 'clients.delete',
 
+  invoicesView: 'invoices.view',
+  invoicesCreate: 'invoices.create',
+  invoicesEdit: 'invoices.edit',
+  invoicesDelete: 'invoices.delete',
+  invoicesPay: 'invoices.pay',
+
   financeView: 'finance.view',
   financeCreate: 'finance.create',
   financeEdit: 'finance.edit',
@@ -62,6 +68,7 @@ export const PERMISSION_MODULES = [
   'gear',
   'projects',
   'clients',
+  'invoices',
   'finance',
   'team',
   'settings',
@@ -133,6 +140,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/gear',      labelKey: 'nav.gear',      icon: 'camera', permission: PERMISSIONS.gearView, group: 'studio', mobile: true },
   { href: '/projects',  labelKey: 'nav.projects',  icon: 'folder', permission: PERMISSIONS.projectsView, group: 'business' },
   { href: '/clients',   labelKey: 'nav.clients',   icon: 'users', permission: PERMISSIONS.clientsView, group: 'business' },
+  { href: '/invoices',  labelKey: 'nav.invoices',  icon: 'receipt', permission: PERMISSIONS.invoicesView, group: 'business' },
   { href: '/finance',   labelKey: 'nav.finance',   icon: 'wallet', permission: PERMISSIONS.financeView, group: 'business', mobile: true },
   { href: '/team',      labelKey: 'nav.team',      icon: 'team', permission: PERMISSIONS.teamView, group: 'business' },
   { href: '/admin/users', labelKey: 'nav.users',   icon: 'shield', permission: PERMISSIONS.usersView, group: 'admin' },
