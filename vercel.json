@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": "framework and outputDirectory are pinned here on purpose. Settings in this file take precedence over the Vercel dashboard, so a project that was imported back when this repo held only static HTML (and therefore detected as 'Other') still deploys as Next.js. outputDirectory: null clears any dashboard override and lets the framework choose.",
+
+  "framework": "nextjs",
+  "outputDirectory": null,
+
   "crons": [
     {
       "path": "/api/keepalive",
