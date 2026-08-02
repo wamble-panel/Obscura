@@ -40,6 +40,17 @@ Both files are safe to run again at any time; they never duplicate or destroy da
 3. Vercel detects Next.js automatically — no build settings to change.
 4. Before the first deploy finishes, add the environment variables below.
 
+> `vercel.json` pins `"framework": "nextjs"` deliberately. This repo started life
+> as plain HTML design files, so a Vercel project imported back then detected the
+> framework as *Other* and kept it — the build ran and compiled fine, but the output
+> was served as a static site: anything in `public/` resolved and every real route
+> returned a 404. Settings in `vercel.json` override the dashboard, so pinning it
+> here makes that impossible. `outputDirectory: null` clears any dashboard override
+> and lets the framework choose its own.
+>
+> A healthy build log contains `Detected Next.js version:` just before the build
+> starts. If that line is missing, the framework was not detected.
+
 ### 4 · Environment variables
 
 In Vercel: **Settings → Environment Variables**. Add each one to
