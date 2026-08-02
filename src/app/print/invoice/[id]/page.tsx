@@ -33,7 +33,7 @@ export default async function InvoicePrintPage({
 
   const items = (itemsRes.data ?? []) as InvoiceItem[]
   const payments = (paymentsRes.data ?? []) as Payment[]
-  const { studio } = await getSettings()
+  const { studio, terms } = await getSettings()
   const { t, lang } = await getT()
 
   const statusLabel = t(`inv.status.${invoice.status}`)
@@ -237,7 +237,16 @@ export default async function InvoicePrintPage({
           <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
             {invoice.terms || t('inv.termsDefault')}
           </p>
-          <p className="mt-6 text-[12px] font-semibold text-ink/40">{t('inv.thankYou')}</p>
+          <p className="mt-2 max-w-[520px] text-[12px] font-medium leading-relaxed text-ink/55">
+            {terms.invoice_line}
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+            <p className="text-[12px] font-semibold text-ink/40">{t('inv.thankYou')}</p>
+            <p className="ob-ltr text-[11.5px] font-semibold text-ink/45">
+              {[studio.phone, studio.instagram].filter(Boolean).join(' · ')}
+            </p>
+          </div>
         </footer>
       </article>
     </>

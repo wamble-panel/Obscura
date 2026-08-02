@@ -4,11 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { assertPermission, logEvent } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PERMISSIONS } from '@/lib/permissions'
-import type { ActionResult, PricingSettings, StudioSettings } from '@/lib/types'
+import type { ActionResult, PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
 
 export async function saveSettings(input: {
   studio: StudioSettings
   pricing: PricingSettings
+  terms?: TermsSettings
 }): Promise<ActionResult> {
   try {
     await assertPermission(PERMISSIONS.settingsEdit)
@@ -21,10 +22,28 @@ export async function saveSettings(input: {
     const supabase = await createClient()
     const now = new Date().toISOString()
 
-    const { error } = await supabase.from('app_settings').upsert([
+    const rows: { key: string; value: unknown; updated_at: string }[] = [
       { key: 'studio', value: input.studio, updated_at: now },
       { key: 'pricing', value: input.pricing, updated_at: now },
-    ])
+    ]
+
+    if (input.terms) {
+      // Drop empty sections and blank bullets so the public page never shows a
+      // stray empty card after an edit.
+      const terms: TermsSettings = {
+        ...input.terms,
+        badges: input.terms.badges.map((b) => b.trim()).filter(Boolean),
+        sections: input.terms.sections
+          .map((s) => ({
+            title: s.title.trim(),
+            items: s.items.map((i) => i.trim()).filter(Boolean),
+          }))
+          .filter((s) => s.title && s.items.length),
+      }
+      rows.push({ key: 'terms', value: terms, updated_at: now })
+    }
+
+    const { error } = await supabase.from('app_settings').upsert(rows)
 
     if (error) return { ok: false, error: error.message }
 

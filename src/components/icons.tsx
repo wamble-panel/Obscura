@@ -200,6 +200,34 @@ export const Icons = {
       <path d="M4 7h16M4 12h16M4 17h16" />
     </Base>
   ),
+  /* House-rule pictograms — each is the whole badge: ring, slash and symbol. */
+  noSmoking: (p: IconProps) => (
+    <Base strokeWidth={1.6} {...p}>
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M5.5 18.5L18.5 5.5" />
+      <path d="M6.2 13.4h7.6v2.4H6.2z" />
+      <path d="M16.1 13.4h1.7v2.4h-1.7" />
+      <path d="M15.4 6.3c1.1.7 1.4 1.9.8 2.9M17.6 7.6c.9.6 1.2 1.6.7 2.5" />
+    </Base>
+  ),
+  noPets: (p: IconProps) => (
+    <Base strokeWidth={1.6} {...p}>
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M5.5 18.5L18.5 5.5" />
+      <ellipse cx="9.2" cy="11.4" rx="1.15" ry="1.5" />
+      <ellipse cx="12.4" cy="10.4" rx="1.15" ry="1.5" />
+      <ellipse cx="15.3" cy="11.9" rx="1.1" ry="1.4" />
+      <path d="M9.6 15.9c0-1.5 1.2-2.5 2.6-2.5s2.6 1 2.6 2.5c0 1.1-1.1 1.6-2.6 1.6s-2.6-.5-2.6-1.6z" />
+    </Base>
+  ),
+  noAlcohol: (p: IconProps) => (
+    <Base strokeWidth={1.6} {...p}>
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M5.5 18.5L18.5 5.5" />
+      <path d="M10.7 5.6h2.6v2.6l1.7 2.6v6.4a1.1 1.1 0 0 1-1.1 1.1h-3.8a1.1 1.1 0 0 1-1.1-1.1v-6.4l1.7-2.6z" />
+      <path d="M9 13.1h6" />
+    </Base>
+  ),
   share: (p: IconProps) => (
     <Base {...p}>
       <path d="M12 3.5v11M8.5 7l3.5-3.5L15.5 7" />

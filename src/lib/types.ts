@@ -296,6 +296,21 @@ export type StudioSettings = {
   open_hour: number
   close_hour: number
   timezone: string
+  phone: string
+  instagram: string
+}
+
+export type TermsSection = {
+  title: string
+  items: string[]
+}
+
+export type TermsSettings = {
+  heading: string
+  agree_line: string
+  invoice_line: string
+  badges: string[]
+  sections: TermsSection[]
 }
 
 export type PricingSettings = {
