@@ -1,6 +1,7 @@
 'use client'
 
 import clsx from 'clsx'
+import { createPortal } from 'react-dom'
 import {
   createContext,
   useCallback,
@@ -343,6 +344,22 @@ export function SubmitButton({
    Overlays
    ========================================================================== */
 
+/**
+ * Renders overlays into <body>.
+ *
+ * The app shell puts page content inside a `relative z-10` column and the phone
+ * tab bar in a `z-40` sibling. That z-10 makes a stacking context, so anything
+ * rendered inside a page — however high its own z-index — paints *below* the
+ * tab bar. That is what hid the Confirm button at the bottom of every dialog.
+ * Escaping to the body sidesteps the whole question.
+ */
+function Portal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+  return createPortal(children, document.body)
+}
+
 function useLockBody(open: boolean) {
   useEffect(() => {
     if (!open) return
@@ -392,6 +409,7 @@ export function Modal({
   if (!open) return null
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-70 flex items-end justify-center bg-ink/35 p-0 animate-[fadeIn_.18s_ease] sm:items-center sm:p-4"
       onClick={onClose}
@@ -399,12 +417,14 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={titleId}
     >
+      {/* dvh, not vh: on iOS vh ignores the browser chrome and the sheet ends
+          up taller than the screen, pushing the buttons out of reach. */}
       <div
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[24px] bg-cream shadow-float animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] sm:rounded-[22px] sm:animate-[popIn_.24s_cubic-bezier(.22,1,.36,1)]"
+        className="flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[24px] bg-cream shadow-float animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] sm:max-h-[90dvh] sm:rounded-[22px] sm:animate-[popIn_.24s_cubic-bezier(.22,1,.36,1)]"
         style={{ maxWidth: width }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
+        <div className="flex flex-shrink-0 items-start justify-between gap-3 px-6 pt-6 pb-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-[19px] font-extrabold tracking-[-0.3px]">
               {title}
@@ -426,12 +446,13 @@ export function Modal({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">{children}</div>
 
         {footer && (
-          <div className="flex gap-2.5 border-t border-ink/8 bg-cream px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-shrink-0 gap-2.5 border-t border-ink/8 bg-cream px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {footer}
           </div>
         )}
       </div>
     </div>
+    </Portal>
   )
 }
 
@@ -455,6 +476,7 @@ export function Drawer({
   if (!open) return null
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-60 flex items-end justify-end bg-ink/30 animate-[fadeIn_.2s_ease] sm:items-stretch"
       onClick={onClose}
@@ -463,10 +485,10 @@ export function Drawer({
       aria-labelledby={titleId}
     >
       <div
-        className="flex max-h-[92vh] w-full flex-col rounded-t-[24px] bg-cream shadow-[-24px_0_60px_-24px_rgba(6,57,48,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] sm:max-h-none sm:w-[400px] sm:rounded-none sm:animate-[slideIn_.28s_cubic-bezier(.22,1,.36,1)]"
+        className="flex max-h-[88dvh] w-full flex-col rounded-t-[24px] bg-cream shadow-[-24px_0_60px_-24px_rgba(6,57,48,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] sm:max-h-none sm:w-[400px] sm:rounded-none sm:animate-[slideIn_.28s_cubic-bezier(.22,1,.36,1)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 px-6 pt-6 pb-3">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-6 pt-6 pb-3">
           <h2 id={titleId} className="text-[18px] font-extrabold tracking-[-0.3px]">
             {title}
           </h2>
@@ -481,12 +503,13 @@ export function Drawer({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>
         {footer && (
-          <div className="flex gap-2.5 border-t border-ink/8 px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-shrink-0 gap-2.5 border-t border-ink/8 bg-cream px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {footer}
           </div>
         )}
       </div>
     </div>
+    </Portal>
   )
 }
 
