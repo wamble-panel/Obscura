@@ -1,0 +1,289 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Obscura design tokens — lifted straight from the studio design files.
+   ========================================================================== */
+@theme {
+  --color-ink: #063930;
+  --color-ink-90: #0a463b;
+  --color-ink-70: #0a5648;
+  --color-sand: #e0dcd0;
+  --color-sand-deep: #cfcaba;
+  --color-paper: #fffdf8;
+  --color-cream: #f5f3ec;
+  --color-bone: #f2f0e9;
+  --color-gold: #b29a6e;
+  --color-clay: #c4643f;
+  --color-moss: #0a6b4f;
+  --color-olive: #8a7a4e;
+
+  --font-sans: var(--font-archivo), var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 20px;
+  --radius-tile: 14px;
+
+  --shadow-card: 0 20px 50px -30px rgba(6, 57, 48, 0.4);
+  --shadow-float: 0 32px 80px -24px rgba(6, 57, 48, 0.55);
+  --shadow-soft: 0 16px 40px -30px rgba(6, 57, 48, 0.4);
+
+  --animate-fade-in: fadeIn 0.2s ease;
+  --animate-pop-in: popIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-slide-in: slideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-sheet-up: sheetUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes popIn {
+  from { transform: translateY(12px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes slideIn {
+  from { transform: translateX(var(--slide-from, 110%)); }
+  to   { transform: translateX(0); }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes pulseSoft {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-sand);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* iOS standalone: never let the whole page rubber-band */
+  body[data-standalone='true'] {
+    overscroll-behavior: none;
+  }
+
+  input,
+  button,
+  select,
+  textarea {
+    font-family: inherit;
+    color: inherit;
+  }
+
+  /* 16px stops iOS Safari zooming in when a field is focused */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    opacity: 0.45;
+    cursor: pointer;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(6, 57, 48, 0.2);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::selection {
+    background: rgba(6, 57, 48, 0.15);
+  }
+}
+
+/* ==========================================================================
+   Reusable pieces
+   ========================================================================== */
+@layer components {
+  .ob-card {
+    background: rgba(255, 253, 248, 0.86);
+    border: 1px solid rgba(6, 57, 48, 0.08);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .ob-tile {
+    background: rgba(6, 57, 48, 0.05);
+    border-radius: var(--radius-tile);
+  }
+
+  .ob-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(6, 57, 48, 0.45);
+  }
+
+  .ob-input {
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid rgba(6, 57, 48, 0.16);
+    background: rgba(255, 253, 248, 0.7);
+    padding: 0 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ob-input:focus {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 3px rgba(6, 57, 48, 0.08);
+  }
+  .ob-input::placeholder {
+    color: rgba(6, 57, 48, 0.35);
+  }
+
+  textarea.ob-input {
+    height: auto;
+    padding: 12px 14px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+
+  select.ob-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23063930' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-inline-end: 36px;
+  }
+  [dir='rtl'] select.ob-input {
+    background-position: left 12px center;
+  }
+
+  .ob-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 42px;
+    padding: 0 17px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease;
+    white-space: nowrap;
+  }
+  .ob-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .ob-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ob-btn-primary {
+    background: var(--color-ink);
+    color: var(--color-bone);
+    border: none;
+  }
+  .ob-btn-primary:hover:not(:disabled) {
+    background: var(--color-ink-70);
+  }
+
+  .ob-btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(6, 57, 48, 0.16);
+    color: var(--color-ink);
+  }
+  .ob-btn-ghost:hover:not(:disabled) {
+    background: rgba(6, 57, 48, 0.05);
+  }
+
+  .ob-btn-danger {
+    background: transparent;
+    border: 1px solid rgba(196, 100, 63, 0.4);
+    color: var(--color-clay);
+  }
+  .ob-btn-danger:hover:not(:disabled) {
+    background: rgba(196, 100, 63, 0.08);
+  }
+
+  .ob-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(6, 57, 48, 0.16);
+    background: transparent;
+    color: rgba(6, 57, 48, 0.65);
+    transition: all 0.15s ease;
+  }
+  .ob-chip[data-on='true'] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-bone);
+  }
+
+  .ob-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* numbers, times and currency stay LTR even in an Arabic layout */
+  .ob-ltr {
+    display: inline-block;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .ob-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .animate-pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }
+}
+
+/* Respect people who ask for less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
