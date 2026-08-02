@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{font-family:'Archivo','IBM Plex Sans Arabic',-apple-system,system-ui,sans-serif; background:#CFCABA; color:#063930; -webkit-font-smoothing:antialiased; overscroll-behavior:none;}
+  a{color:#063930; text-decoration:none;} a:hover{color:#0A5648;}
+  input,button,select,textarea{font-family:inherit; color:inherit; font-size:16px;}
+  button{border:none; background:none; padding:0; cursor:pointer;}
+  input[type=date]::-webkit-calendar-picker-indicator{opacity:.45;}
+  .obs::-webkit-scrollbar{width:0; height:0;}
+  @keyframes obLaunchMark{0%{opacity:0; transform:scale(.82);}45%{opacity:1; transform:scale(1);}100%{opacity:1; transform:scale(1);}}
+  @keyframes obLaunchBar{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+  @keyframes obLaunchOut{from{opacity:1;}to{opacity:0;}}
+  @keyframes obSheet{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  @keyframes obDim{from{opacity:0;}to{opacity:1;}}
+  @keyframes obPage{from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:translateY(0);}}
+  @keyframes obPulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+</style>
+</helmet>
+
+<div dir="{{ dir }}" style="height:100vh; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:{{ outerPad }}; background:{{ outerBg }};">
+<div style="position:relative; width:{{ shellW }}; height:{{ shellH }}; max-height:{{ shellMaxH }}; min-height:0; border-radius:{{ shellR }}; overflow:hidden; background:#E0DCD0; box-shadow:{{ shellShadow }}; display:flex; flex-direction:column;">
+
+  <div style="position:absolute; inset:0; z-index:0; pointer-events:none; background-image:url('assets/obscura-mark.png'); background-repeat:no-repeat; background-position:center 42%; background-size:150% auto; opacity:.045;"></div>
+
+  <!-- ===== STATUS BAR ===== -->
+  <div style="position:relative; z-index:5; flex-shrink:0; height:{{ statusH }}; padding:{{ statusPad }}; display:flex; align-items:flex-end; justify-content:space-between; background:{{ chromeBg }};">
+    <div style="font-size:14px; font-weight:700; letter-spacing:-.2px; direction:ltr;">9:41</div>
+    <div style="display:flex; align-items:center; gap:5px;">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="#063930"><rect x="0" y="7.5" width="3" height="3.5" rx="1"/><rect x="4.6" y="5.5" width="3" height="5.5" rx="1"/><rect x="9.2" y="3" width="3" height="8" rx="1"/><rect x="13.8" y="0" width="3" height="11" rx="1"/></svg>
+      <svg width="15" height="11" viewBox="0 0 16 12" fill="none" stroke="#063930" stroke-width="1.7" stroke-linecap="round"><path d="M1 4.2a10 10 0 0 1 14 0M3.7 7a6.2 6.2 0 0 1 8.6 0"/><circle cx="8" cy="10.2" r="1.1" fill="#063930" stroke="none"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".7" y=".7" width="20.6" height="10.6" rx="3.2" stroke="#063930" stroke-opacity=".4" stroke-width="1.1"/><rect x="2.4" y="2.4" width="14" height="7.2" rx="2" fill="#063930"/><path d="M23 4.2v3.6a2.1 2.1 0 0 0 0-3.6z" fill="#063930" fill-opacity=".45"/></svg>
+    </div>
+  </div>
+
+  <!-- ===== HEADER ===== -->
+  <div style="position:relative; z-index:5; flex-shrink:0; background:{{ chromeBg }}; padding:6px 20px 12px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px;">
+      <div style="min-width:0;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.branch }}</div>
+        <h1 style="margin:2px 0 0; font-size:27px; font-weight:800; letter-spacing:-.8px; line-height:1.1;">{{ pageTitle }}</h1>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; padding-bottom:3px;">
+        <button onClick="{{ toggleLang }}" style="height:32px; padding:0 12px; border-radius:999px; background:rgba(6,57,48,.06); font-size:12px; font-weight:700;">{{ langLabel }}</button>
+        <img src="assets/obscura-lockup.png" alt="Obscura" style="height:17px; width:auto; display:block; opacity:.9;">
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCROLL AREA ===== -->
+  <div class="obs" style="position:relative; z-index:2; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:6px 16px 26px;">
+
+    <!-- ============ CALENDAR ============ -->
+    <sc-if value="{{ isCal }}" hint-placeholder-val="{{ true }}">
+      <div style="animation:obPage .22s ease; display:flex; flex-direction:column; gap:14px;">
+
+        <div style="background:#F7F5EE; border-radius:20px; padding:14px 14px 10px; box-shadow:0 10px 26px -18px rgba(6,57,48,.5);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <button onClick="{{ prevMonth }}" style="width:34px; height:34px; border-radius:11px; background:rgba(6,57,48,.05); display:flex; align-items:center; justify-content:center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="transform:{{ chev }};"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button onClick="{{ openMonthPicker }}" style="display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:11px;">
+              <span style="font-size:17px; font-weight:800; letter-spacing:-.4px;">{{ monthLabel }}</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button onClick="{{ nextMonth }}" style="width:34px; height:34px; border-radius:11px; background:rgba(6,57,48,.05); display:flex; align-items:center; justify-content:center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="transform:{{ chev }};"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <div dir="ltr" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px;">
+            <sc-for list="{{ wdShort }}" as="w" hint-placeholder-count="7">
+              <div style="text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.3px; color:rgba(6,57,48,.38); padding-bottom:6px;">{{ w }}</div>
+            </sc-for>
+          </div>
+          <div dir="ltr" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
+            <sc-for list="{{ monthCells }}" as="c" hint-placeholder-count="35">
+              <button onClick="{{ c.onClick }}" style="aspect-ratio:1; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:{{ c.bg }}; color:{{ c.fg }}; opacity:{{ c.op }};">
+                <span style="font-size:14px; font-weight:{{ c.weight }}; letter-spacing:-.3px;">{{ c.num }}</span>
+                <span style="width:4px; height:4px; border-radius:50%; background:{{ c.dot }};"></span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="display:flex; justify-content:center; padding:8px 0 2px;">
+            <button onClick="{{ goToday }}" style="font-size:12.5px; font-weight:700; color:rgba(6,57,48,.5); padding:5px 14px; border-radius:999px; background:rgba(6,57,48,.05);">{{ t.today }}</button>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:baseline; justify-content:space-between; padding:0 4px;">
+          <div style="font-size:15.5px; font-weight:800; letter-spacing:-.3px;">{{ dayLabel }}</div>
+          <div style="font-size:12.5px; font-weight:700; color:rgba(6,57,48,.45);">{{ daySummary }}</div>
+        </div>
+
+        <sc-if value="{{ dayEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#F7F5EE; border-radius:20px; padding:34px 20px; text-align:center; box-shadow:0 10px 26px -20px rgba(6,57,48,.45);">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(6,57,48,.28)" stroke-width="1.6" stroke-linecap="round" style="margin-bottom:10px;"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+            <div style="font-size:14px; font-weight:700; color:rgba(6,57,48,.55);">{{ t.noSessions }}</div>
+            <button onClick="{{ openBook }}" style="margin-top:14px; height:40px; padding:0 20px; border-radius:999px; background:#063930; color:#F2F0E9; font-size:13.5px; font-weight:700;">{{ t.bookSession }}</button>
+          </div>
+        </sc-if>
+
+        <sc-for list="{{ daySessions }}" as="s" hint-placeholder-count="2">
+          <button onClick="{{ s.onClick }}" style="display:block; width:100%; text-align:start; background:#F7F5EE; border-radius:20px; padding:16px 17px; box-shadow:0 10px 26px -20px rgba(6,57,48,.45);">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+              <div style="min-width:0;">
+                <div style="font-size:16px; font-weight:800; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.client }}</div>
+                <div style="font-size:12.5px; font-weight:600; color:rgba(6,57,48,.5); margin-top:3px;">{{ s.pkgLabel }}</div>
+              </div>
+              <span style="flex-shrink:0; font-size:10.5px; font-weight:800; letter-spacing:.4px; padding:5px 10px; border-radius:999px; background:{{ s.badgeBg }}; color:{{ s.badgeFg }};">{{ s.badge }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px; padding-top:13px; border-top:1px solid rgba(6,57,48,.07);">
+              <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(6,57,48,.45)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+                <span style="direction:ltr;">{{ s.time }}</span>
+              </div>
+              <div style="margin-inline-start:auto; text-align:end;">
+                <span style="font-size:15px; font-weight:800;">{{ s.egp }}</span>
+                <span style="font-size:11px; font-weight:600; color:rgba(6,57,48,.4); margin-inline-start:4px;">{{ s.usd }}</span>
+              </div>
+            </div>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ GEAR ============ -->
+    <sc-if value="{{ isGear }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:obPage .22s ease; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; gap:8px;">
+          <sc-for list="{{ gearStats }}" as="g" hint-placeholder-count="3">
+            <div style="flex:1; background:#F7F5EE; border-radius:16px; padding:12px 13px; box-shadow:0 8px 22px -18px rgba(6,57,48,.5);">
+              <div style="font-size:21px; font-weight:800; letter-spacing:-.6px; color:{{ g.color }};">{{ g.value }}</div>
+              <div style="font-size:10.5px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-top:2px;">{{ g.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; gap:6px; background:rgba(6,57,48,.06); border-radius:12px; padding:3px;">
+          <sc-for list="{{ gearFilters }}" as="f" hint-placeholder-count="3">
+            <button onClick="{{ f.onClick }}" style="flex:1; height:32px; border-radius:9px; font-size:12.5px; font-weight:700; background:{{ f.bg }}; color:{{ f.fg }}; box-shadow:{{ f.shadow }};">{{ f.label }}</button>
+          </sc-for>
+        </div>
+
+        <sc-for list="{{ gearGroups }}" as="grp" hint-placeholder-count="4">
+          <div>
+            <div style="font-size:11px; font-weight:800; letter-spacing:.9px; text-transform:uppercase; color:rgba(6,57,48,.4); padding:6px 4px 8px;">{{ grp.cat }}</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="3">
+                <button onClick="{{ it.onClick }}" style="display:flex; align-items:center; gap:12px; width:100%; text-align:start; background:#F7F5EE; border-radius:16px; padding:13px 14px; box-shadow:0 8px 22px -20px rgba(6,57,48,.45);">
+                  <span style="flex-shrink:0; width:38px; height:38px; border-radius:11px; background:{{ it.tileBg }}; color:{{ it.tileFg }}; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">{{ it.qtyLabel }}</span>
+                  <span style="flex:1; min-width:0;">
+                    <span style="display:block; font-size:14px; font-weight:700; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ it.name }}</span>
+                    <span style="display:block; font-size:11.5px; font-weight:600; color:{{ it.subColor }}; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ it.sub }}</span>
+                  </span>
+                  <span style="flex-shrink:0; text-align:end;">
+                    <span style="display:block; font-size:13.5px; font-weight:800;">{{ it.rate }}</span>
+                    <span style="display:block; font-size:10px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:rgba(6,57,48,.35);">{{ t.perSession }}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+
+        <button onClick="{{ openAddGear }}" style="height:50px; border-radius:16px; border:1.5px dashed rgba(6,57,48,.28); display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px; font-weight:700; color:rgba(6,57,48,.6);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>{{ t.addGear }}
+        </button>
+      </div>
+    </sc-if>
+
+    <!-- ============ PROJECTS ============ -->
+    <sc-if value="{{ isProj }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:obPage .22s ease; display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ projects }}" as="p" hint-placeholder-count="3">
+          <div style="background:#F7F5EE; border-radius:20px; padding:17px 18px; box-shadow:0 10px 26px -20px rgba(6,57,48,.45);">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+              <div style="min-width:0;">
+                <div style="font-size:16px; font-weight:800; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.client }}</div>
+                <div style="font-size:12px; font-weight:600; color:rgba(6,57,48,.5); margin-top:2px;">{{ p.title }}</div>
+              </div>
+              <span style="flex-shrink:0; font-size:10.5px; font-weight:800; padding:5px 10px; border-radius:999px; background:{{ p.stBg }}; color:{{ p.stFg }};">{{ p.status }}</span>
+            </div>
+
+            <div style="display:flex; align-items:baseline; justify-content:space-between; margin:15px 0 7px;">
+              <span style="font-size:13px; font-weight:700;">{{ p.progressLabel }}</span>
+              <span style="font-size:13px; font-weight:800;">{{ p.pct }}</span>
+            </div>
+            <div style="height:9px; border-radius:999px; background:rgba(6,57,48,.09); overflow:hidden;">
+              <div style="height:100%; width:{{ p.pct }}; border-radius:999px; background:#063930; transition:width .45s cubic-bezier(.22,1,.36,1);"></div>
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:15px; padding-top:14px; border-top:1px solid rgba(6,57,48,.07);">
+              <div style="min-width:0;">
+                <div style="font-size:15px; font-weight:800;">{{ p.valueEgp }}</div>
+                <div style="font-size:11px; font-weight:600; color:rgba(6,57,48,.42);">{{ p.perVideo }}</div>
+              </div>
+              <button onClick="{{ p.onReport }}" style="flex-shrink:0; height:36px; padding:0 15px; border-radius:11px; background:rgba(6,57,48,.07); font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>{{ t.logDelivery }}
+              </button>
+            </div>
+
+            <div style="display:flex; flex-wrap:wrap; gap:7px; margin-top:13px;">
+              <sc-for list="{{ p.editors }}" as="e" hint-placeholder-count="2">
+                <span style="display:flex; align-items:center; gap:6px; padding:5px 10px 5px 5px; border-radius:999px; background:rgba(6,57,48,.05); font-size:11.5px; font-weight:700;">
+                  <span style="width:20px; height:20px; border-radius:50%; background:rgba(6,57,48,.12); display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-weight:800;">{{ e.initials }}</span>{{ e.label }}
+                </span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ MONEY ============ -->
+    <sc-if value="{{ isMoney }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:obPage .22s ease; display:flex; flex-direction:column; gap:14px;">
+        <div style="background:#063930; color:#E0DCD0; border-radius:22px; padding:20px; box-shadow:0 16px 36px -22px rgba(6,57,48,.8);">
+          <div style="font-size:11.5px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; opacity:.6;">{{ t.netProfit }} · {{ finMonthLabel }}</div>
+          <div style="font-size:34px; font-weight:800; letter-spacing:-1.2px; margin-top:6px;">{{ fin.netEgp }}</div>
+          <div style="font-size:13px; font-weight:600; opacity:.6;">{{ fin.netUsd }}</div>
+          <div style="display:flex; gap:10px; margin-top:18px; padding-top:16px; border-top:1px solid rgba(224,220,208,.2);">
+            <div style="flex:1;">
+              <div style="font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; opacity:.6;">{{ t.income }}</div>
+              <div style="font-size:17px; font-weight:800; margin-top:3px;">{{ fin.inEgp }}</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; opacity:.6;">{{ t.expenses }}</div>
+              <div style="font-size:17px; font-weight:800; margin-top:3px; color:#F0A08C;">{{ fin.outEgp }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <sc-for list="{{ finBreak }}" as="b" hint-placeholder-count="3">
+            <div style="flex:1; background:#F7F5EE; border-radius:16px; padding:12px 13px; box-shadow:0 8px 22px -18px rgba(6,57,48,.5);">
+              <div style="font-size:10.5px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ b.label }}</div>
+              <div style="font-size:16px; font-weight:800; letter-spacing:-.4px; margin-top:4px;">{{ b.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 4px 0;">
+          <div style="font-size:15.5px; font-weight:800; letter-spacing:-.3px;">{{ t.ledger }}</div>
+          <button onClick="{{ openAddEntry }}" style="height:32px; padding:0 13px; border-radius:999px; background:rgba(6,57,48,.07); font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>{{ t.addEntry }}
+          </button>
+        </div>
+
+        <div style="background:#F7F5EE; border-radius:20px; overflow:hidden; box-shadow:0 10px 26px -20px rgba(6,57,48,.45);">
+          <sc-for list="{{ ledger }}" as="l" hint-placeholder-count="6">
+            <div style="display:flex; align-items:center; gap:12px; padding:13px 16px; border-bottom:1px solid rgba(6,57,48,.06);">
+              <span style="flex-shrink:0; width:34px; height:34px; border-radius:11px; background:{{ l.iconBg }}; display:flex; align-items:center; justify-content:center;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ l.iconFg }}" stroke-width="2.6" stroke-linecap="round" style="transform:{{ l.arrow }};"><path d="M12 5v14M6 11l6 6 6-6"/></svg>
+              </span>
+              <span style="flex:1; min-width:0;">
+                <span style="display:block; font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ l.label }}</span>
+                <span style="display:block; font-size:11px; font-weight:600; color:rgba(6,57,48,.42); margin-top:1px;">{{ l.meta }}</span>
+              </span>
+              <span style="flex-shrink:0; font-size:14px; font-weight:800; color:{{ l.amtColor }};">{{ l.amount }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ TEAM ============ -->
+    <sc-if value="{{ isTeam }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:obPage .22s ease; display:flex; flex-direction:column; gap:12px;">
+        <div style="background:#F7F5EE; border-radius:18px; padding:15px 17px; box-shadow:0 8px 22px -18px rgba(6,57,48,.5); display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div>
+            <div style="font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.payrollMonth }}</div>
+            <div style="font-size:20px; font-weight:800; letter-spacing:-.6px; margin-top:3px;">{{ payrollTotal }}</div>
+          </div>
+          <div style="text-align:end;">
+            <div style="font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.paid }}</div>
+            <div style="font-size:20px; font-weight:800; letter-spacing:-.6px; margin-top:3px; color:{{ payrollColor }};">{{ payrollPaid }}</div>
+          </div>
+        </div>
+
+        <sc-for list="{{ team }}" as="m" hint-placeholder-count="3">
+          <div style="background:#F7F5EE; border-radius:20px; padding:17px 18px; box-shadow:0 10px 26px -20px rgba(6,57,48,.45);">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="width:42px; height:42px; border-radius:50%; background:rgba(6,57,48,.09); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;">{{ m.initials }}</span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:800; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.name }}</div>
+                <div style="font-size:11.5px; font-weight:600; color:rgba(6,57,48,.5);">{{ m.role }}</div>
+              </div>
+              <span style="flex-shrink:0; font-size:10.5px; font-weight:800; padding:5px 10px; border-radius:999px; background:{{ m.stBg }}; color:{{ m.stFg }};">{{ m.stLabel }}</span>
+            </div>
+
+            <div style="display:flex; gap:9px; margin-top:15px;">
+              <div style="flex:1; background:rgba(6,57,48,.05); border-radius:13px; padding:11px 13px;">
+                <div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.salary }}</div>
+                <div style="font-size:16px; font-weight:800; margin-top:3px;">{{ m.salary }}</div>
+              </div>
+              <div style="flex:1; background:rgba(6,57,48,.05); border-radius:13px; padding:11px 13px;">
+                <div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.delivered }}</div>
+                <div style="font-size:16px; font-weight:800; margin-top:3px;">{{ m.done }}</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:13px;">
+              <button onClick="{{ m.onEdit }}" style="flex:1; height:40px; border-radius:12px; background:rgba(6,57,48,.06); font-size:13px; font-weight:700;">{{ t.editSalary }}</button>
+              <button onClick="{{ m.onPay }}" style="flex:1.2; height:40px; border-radius:12px; background:{{ m.payBg }}; color:{{ m.payFg }}; font-size:13px; font-weight:700;">{{ m.payLabel }}</button>
+            </div>
+          </div>
+        </sc-for>
+
+        <button onClick="{{ openAddMember }}" style="height:50px; border-radius:16px; border:1.5px dashed rgba(6,57,48,.28); display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px; font-weight:700; color:rgba(6,57,48,.6);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>{{ t.addMember }}
+        </button>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- ===== FAB ===== -->
+  <sc-if value="{{ showFab }}" hint-placeholder-val="{{ true }}">
+    <button onClick="{{ openBook }}" style="position:absolute; z-index:8; inset-inline-end:18px; bottom:{{ fabBottom }}; width:54px; height:54px; border-radius:50%; background:#063930; color:#F2F0E9; display:flex; align-items:center; justify-content:center; box-shadow:0 12px 26px -8px rgba(6,57,48,.65);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </sc-if>
+
+  <!-- ===== TAB BAR ===== -->
+  <div style="position:relative; z-index:6; flex-shrink:0; display:flex; background:rgba(247,245,238,.92); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-top:1px solid rgba(6,57,48,.09); padding:8px 4px {{ tabPadBottom }};">
+    <button onClick="{{ tabCal.onClick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:{{ tabCal.color }}; padding:2px 0;">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ tabCal.sw }}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+      <span style="font-size:9.5px; font-weight:700;">{{ t.calendar }}</span>
+    </button>
+    <button onClick="{{ tabGear.onClick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:{{ tabGear.color }}; padding:2px 0;">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ tabGear.sw }}" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5l8-4 8 4v9l-8 4-8-4v-9z"/><path d="M4 7.5l8 4 8-4M12 11.5v9"/></svg>
+      <span style="font-size:9.5px; font-weight:700;">{{ t.gear }}</span>
+    </button>
+    <button onClick="{{ tabProj.onClick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:{{ tabProj.color }}; padding:2px 0;">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ tabProj.sw }}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M7.5 5.5v13M16.5 5.5v13M3 12h18"/></svg>
+      <span style="font-size:9.5px; font-weight:700;">{{ t.projects }}</span>
+    </button>
+    <button onClick="{{ tabMoney.onClick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:{{ tabMoney.color }}; padding:2px 0;">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ tabMoney.sw }}" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="11" rx="2.5"/><path d="M3 10.5h18M16.5 14h2"/></svg>
+      <span style="font-size:9.5px; font-weight:700;">{{ t.money }}</span>
+    </button>
+    <button onClick="{{ tabTeam.onClick }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:{{ tabTeam.color }}; padding:2px 0;">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ tabTeam.sw }}" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16.5 10a2.8 2.8 0 0 0 0-5.6M19.5 19.5c0-2.3-1.3-4-3.2-4.7"/></svg>
+      <span style="font-size:9.5px; font-weight:700;">{{ t.team }}</span>
+    </button>
+  </div>
+
+  <!-- ===== MONTH PICKER SHEET ===== -->
+  <sc-if value="{{ monthPickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:30; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" style="width:100%; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 16px;"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <button onClick="{{ prevYear }}" style="width:36px; height:36px; border-radius:11px; background:rgba(6,57,48,.06); display:flex; align-items:center; justify-content:center;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="transform:{{ chev }};"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <span style="font-size:19px; font-weight:800; letter-spacing:-.4px; direction:ltr;">{{ pickerYear }}</span>
+          <button onClick="{{ nextYear }}" style="width:36px; height:36px; border-radius:11px; background:rgba(6,57,48,.06); display:flex; align-items:center; justify-content:center;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" style="transform:{{ chev }};"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+          <sc-for list="{{ pickerMonths }}" as="pm" hint-placeholder-count="12">
+            <button onClick="{{ pm.onClick }}" style="height:46px; border-radius:13px; font-size:13.5px; font-weight:700; background:{{ pm.bg }}; color:{{ pm.fg }};">{{ pm.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== BOOK SHEET ===== -->
+  <sc-if value="{{ bookOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:32; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:94%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px; margin-bottom:16px;">{{ t.newSession }}</div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.package }}</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
+          <sc-for list="{{ pkgOptions }}" as="pk" hint-placeholder-count="3">
+            <button onClick="{{ pk.onClick }}" style="display:flex; align-items:center; gap:12px; width:100%; text-align:start; padding:14px 15px; border-radius:16px; background:{{ pk.bg }}; color:{{ pk.fg }}; box-shadow:{{ pk.ring }};">
+              <span style="flex-shrink:0; width:20px; height:20px; border-radius:50%; border:2px solid {{ pk.dotBorder }}; display:flex; align-items:center; justify-content:center;">
+                <span style="width:10px; height:10px; border-radius:50%; background:{{ pk.dotFill }};"></span>
+              </span>
+              <span style="flex:1; min-width:0;">
+                <span style="display:block; font-size:14.5px; font-weight:800; letter-spacing:-.2px;">{{ pk.label }}</span>
+                <span style="display:block; font-size:11.5px; font-weight:600; opacity:.6; margin-top:2px;">{{ pk.sub }}</span>
+              </span>
+              <span style="flex-shrink:0; font-size:16px; font-weight:800;">{{ pk.price }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ f.isHourly }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-bottom:18px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.hours }}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; height:52px; border-radius:15px; background:rgba(6,57,48,.05); padding:0 8px;">
+              <button onClick="{{ decHours }}" style="width:38px; height:38px; border-radius:11px; background:#F7F5EE; font-size:20px; font-weight:700; line-height:1;">−</button>
+              <span style="font-size:19px; font-weight:800; direction:ltr;">{{ f.hoursLabel }}</span>
+              <button onClick="{{ incHours }}" style="width:38px; height:38px; border-radius:11px; background:#F7F5EE; font-size:20px; font-weight:700; line-height:1;">+</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.dateTime }}</div>
+        <div style="display:flex; gap:9px; margin-bottom:12px;">
+          <input type="date" value="{{ f.date }}" onInput="{{ setDate }}" style="flex:1.3; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 13px; font-size:14px; font-weight:600; outline:none;">
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;">
+          <sc-for list="{{ startOptions }}" as="so" hint-placeholder-count="8">
+            <button onClick="{{ so.onClick }}" style="height:36px; padding:0 12px; border-radius:11px; font-size:12.5px; font-weight:700; background:{{ so.bg }}; color:{{ so.fg }}; direction:ltr; opacity:{{ so.op }};">{{ so.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.client }}</div>
+        <input value="{{ f.client }}" onInput="{{ setClient }}" placeholder="{{ t.clientPh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:9px;">
+        <input value="{{ f.phone }}" onInput="{{ setPhone }}" placeholder="{{ t.phonePh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:18px; direction:ltr;">
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.addOns }}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:18px;">
+          <sc-for list="{{ addOnOptions }}" as="ao" hint-placeholder-count="6">
+            <button onClick="{{ ao.onClick }}" style="display:flex; align-items:center; gap:7px; height:38px; padding:0 13px; border-radius:12px; font-size:12.5px; font-weight:700; background:{{ ao.bg }}; color:{{ ao.fg }};">
+              {{ ao.label }}<span style="font-size:11px; opacity:.65;">{{ ao.price }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="border-radius:18px; background:rgba(6,57,48,.05); padding:15px 16px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px solid rgba(6,57,48,.08);">
+            <span style="font-size:13px; font-weight:600; color:rgba(6,57,48,.6);">{{ f.pkgSummary }}</span>
+            <b style="font-size:14px;">{{ f.pkgPrice }}</b>
+          </div>
+          <sc-if value="{{ f.hasAddOns }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(6,57,48,.08);">
+              <span style="font-size:13px; font-weight:600; color:rgba(6,57,48,.6);">{{ f.addOnSummary }}</span>
+              <b style="font-size:14px;">{{ f.addOnPrice }}</b>
+            </div>
+          </sc-if>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:11px;">
+            <span style="font-size:14px; font-weight:800;">{{ t.total }}</span>
+            <span><b style="font-size:19px;">{{ f.totalEgp }}</b> <span style="font-size:11.5px; color:rgba(6,57,48,.45);">{{ f.totalUsd }}</span></span>
+          </div>
+          <div style="font-size:11.5px; font-weight:700; color:#C4643F; margin-top:8px;">{{ f.depositNote }}</div>
+        </div>
+
+        <button onClick="{{ saveSession }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800; opacity:{{ saveOpacity }};">{{ t.confirmBooking }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== SESSION DETAIL SHEET ===== -->
+  <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:32; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 16px;"></div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+          <div style="min-width:0;">
+            <div style="font-size:22px; font-weight:800; letter-spacing:-.6px;">{{ d.client }}</div>
+            <div style="font-size:13px; font-weight:600; color:rgba(6,57,48,.5); margin-top:3px; direction:ltr;">{{ d.phone }}</div>
+          </div>
+          <span style="flex-shrink:0; font-size:10.5px; font-weight:800; padding:5px 11px; border-radius:999px; background:{{ d.badgeBg }}; color:{{ d.badgeFg }};">{{ d.badge }}</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:18px;">
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 14px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.date }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ d.date }}</div></div>
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 14px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.time }}</div><div style="font-size:14px; font-weight:800; margin-top:3px; direction:ltr;">{{ d.time }}</div></div>
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 14px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.package }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ d.pkg }}</div></div>
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 14px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.included }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ d.included }}</div></div>
+        </div>
+
+        <sc-if value="{{ d.hasAddOns }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.addOns }}</div>
+            <div style="display:flex; flex-direction:column; gap:7px;">
+              <sc-for list="{{ d.addOns }}" as="a" hint-placeholder-count="2">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 14px; border-radius:13px; background:rgba(6,57,48,.05);">
+                  <span style="font-size:13px; font-weight:700;">{{ a.name }}</span>
+                  <b style="font-size:13px;">{{ a.price }}</b>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:16px; border-radius:18px; background:rgba(6,57,48,.05); padding:15px 16px;">
+          <div style="display:flex; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid rgba(6,57,48,.08);"><span style="font-size:13px; font-weight:600; color:rgba(6,57,48,.6);">{{ t.total }}</span><b style="font-size:14px;">{{ d.totalEgp }}</b></div>
+          <div style="display:flex; justify-content:space-between; padding:11px 0 0;"><span style="font-size:13px; font-weight:600; color:rgba(6,57,48,.6);">{{ t.deposit50 }}</span><b style="font-size:14px; color:#C4643F;">{{ d.deposit }}</b></div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button onClick="{{ toggleDeposit }}" style="flex:1.3; height:50px; border-radius:15px; background:{{ d.depBtnBg }}; color:{{ d.depBtnFg }}; font-size:14px; font-weight:800;">{{ d.depBtnLabel }}</button>
+          <button onClick="{{ deleteSession }}" style="flex:1; height:50px; border-radius:15px; background:rgba(196,100,63,.1); color:#C4643F; font-size:14px; font-weight:800;">{{ t.cancel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== GEAR DETAIL SHEET ===== -->
+  <sc-if value="{{ gearSheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:32; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 16px;"></div>
+        <div style="font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ g.cat }}</div>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.6px; margin-top:4px;">{{ g.name }}</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-top:18px;">
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 13px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.qty }}</div><div style="font-size:16px; font-weight:800; margin-top:3px;">{{ g.qty }}</div></div>
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 13px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.rate }}</div><div style="font-size:16px; font-weight:800; margin-top:3px;">{{ g.rate }}</div></div>
+          <div style="background:rgba(6,57,48,.05); border-radius:14px; padding:12px 13px;"><div style="font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:rgba(6,57,48,.42);">{{ t.status }}</div><div style="font-size:16px; font-weight:800; margin-top:3px; color:{{ g.stColor }};">{{ g.stLabel }}</div></div>
+        </div>
+
+        <sc-if value="{{ g.isOut }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px; border-radius:16px; background:rgba(196,100,63,.09); padding:14px 16px;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#C4643F;">{{ t.rentedOut }}</div>
+            <div style="font-size:15px; font-weight:800; margin-top:5px;">{{ g.renter }}</div>
+            <div style="font-size:12.5px; font-weight:600; color:rgba(6,57,48,.55); margin-top:2px;">{{ g.dueLabel }}</div>
+          </div>
+        </sc-if>
+
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <sc-if value="{{ g.isOut }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ returnGear }}" style="flex:1; height:50px; border-radius:15px; background:#063930; color:#F2F0E9; font-size:14px; font-weight:800;">{{ t.markReturned }}</button>
+          </sc-if>
+          <sc-if value="{{ g.canRent }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ openRent }}" style="flex:1; height:50px; border-radius:15px; background:#063930; color:#F2F0E9; font-size:14px; font-weight:800;">{{ t.rentOut }}</button>
+          </sc-if>
+          <button onClick="{{ removeGear }}" style="flex:.7; height:50px; border-radius:15px; background:rgba(196,100,63,.1); color:#C4643F; font-size:14px; font-weight:800;">{{ t.remove }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== RENT OUT SHEET ===== -->
+  <sc-if value="{{ rentOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:34; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px;">{{ t.rentOut }}</div>
+        <div style="font-size:13px; font-weight:600; color:rgba(6,57,48,.5); margin:3px 0 18px;">{{ rentName }}</div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.renter }}</div>
+        <input value="{{ rentForm.who }}" onInput="{{ setRenter }}" placeholder="{{ t.renterPh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:14px;">
+
+        <div style="display:flex; gap:9px; margin-bottom:14px;">
+          <div style="flex:1;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.dueBack }}</div>
+            <input type="date" value="{{ rentForm.due }}" onInput="{{ setRentDue }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 12px; font-size:14px; font-weight:600; outline:none;">
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.fee }}</div>
+            <div style="display:flex; align-items:center; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 13px; gap:6px;">
+              <span style="font-size:13px; font-weight:800; color:rgba(6,57,48,.45);">E£</span>
+              <input type="number" value="{{ rentForm.fee }}" onInput="{{ setRentFee }}" style="flex:1; width:100%; border:none; outline:none; background:transparent; font-size:15px; font-weight:700;">
+            </div>
+          </div>
+        </div>
+
+        <button onClick="{{ saveRent }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800;">{{ t.confirmRental }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== ADD GEAR SHEET ===== -->
+  <sc-if value="{{ addGearOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:34; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:94%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px; margin-bottom:16px;">{{ t.addGear }}</div>
+
+        <div style="height:132px; margin-bottom:16px;">
+          <image-slot id="obs-gear-photo" shape="rounded" radius="16" placeholder="{{ t.photoPh }}"></image-slot>
+        </div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.gearName }}</div>
+        <input value="{{ gearForm.name }}" onInput="{{ setGearName }}" placeholder="{{ t.gearNamePh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:16px;">
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.category }}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px;">
+          <sc-for list="{{ catOptions }}" as="co" hint-placeholder-count="6">
+            <button onClick="{{ co.onClick }}" style="height:36px; padding:0 13px; border-radius:11px; font-size:12.5px; font-weight:700; background:{{ co.bg }}; color:{{ co.fg }};">{{ co.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; gap:9px; margin-bottom:18px;">
+          <div style="flex:1;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.qty }}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; height:48px; border-radius:14px; background:rgba(6,57,48,.05); padding:0 6px;">
+              <button onClick="{{ decGearQty }}" style="width:36px; height:36px; border-radius:10px; background:#F7F5EE; font-size:19px; font-weight:700; line-height:1;">−</button>
+              <span style="font-size:16px; font-weight:800;">{{ gearForm.qty }}</span>
+              <button onClick="{{ incGearQty }}" style="width:36px; height:36px; border-radius:10px; background:#F7F5EE; font-size:19px; font-weight:700; line-height:1;">+</button>
+            </div>
+          </div>
+          <div style="flex:1.2;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.ratePerSession }}</div>
+            <div style="display:flex; align-items:center; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 13px; gap:6px;">
+              <span style="font-size:13px; font-weight:800; color:rgba(6,57,48,.45);">E£</span>
+              <input type="number" value="{{ gearForm.rate }}" onInput="{{ setGearRate }}" style="flex:1; width:100%; border:none; outline:none; background:transparent; font-size:15px; font-weight:700;">
+            </div>
+          </div>
+        </div>
+
+        <button onClick="{{ saveGear }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800; opacity:{{ gearSaveOpacity }};">{{ t.saveGear }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== LEDGER ENTRY SHEET ===== -->
+  <sc-if value="{{ entryOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:34; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px; margin-bottom:16px;">{{ t.addEntry }}</div>
+
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <button onClick="{{ setEntryIn }}" style="flex:1; height:46px; border-radius:14px; font-size:13.5px; font-weight:800; background:{{ eIn.bg }}; color:{{ eIn.fg }};">{{ t.income }}</button>
+          <button onClick="{{ setEntryOut }}" style="flex:1; height:46px; border-radius:14px; font-size:13.5px; font-weight:800; background:{{ eOut.bg }}; color:{{ eOut.fg }};">{{ t.expense }}</button>
+        </div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.category }}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px;">
+          <sc-for list="{{ entryCats }}" as="ec" hint-placeholder-count="5">
+            <button onClick="{{ ec.onClick }}" style="height:36px; padding:0 13px; border-radius:11px; font-size:12.5px; font-weight:700; background:{{ ec.bg }}; color:{{ ec.fg }};">{{ ec.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.note }}</div>
+        <input value="{{ entryForm.label }}" onInput="{{ setEntryLabel }}" placeholder="{{ t.notePh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:16px;">
+
+        <div style="display:flex; gap:9px; margin-bottom:18px;">
+          <div style="flex:1.2;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.amount }}</div>
+            <div style="display:flex; align-items:center; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 13px; gap:6px;">
+              <span style="font-size:13px; font-weight:800; color:rgba(6,57,48,.45);">E£</span>
+              <input type="number" value="{{ entryForm.amount }}" onInput="{{ setEntryAmount }}" style="flex:1; width:100%; border:none; outline:none; background:transparent; font-size:15px; font-weight:700;">
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.date }}</div>
+            <input type="date" value="{{ entryForm.date }}" onInput="{{ setEntryDate }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 12px; font-size:14px; font-weight:600; outline:none;">
+          </div>
+        </div>
+
+        <button onClick="{{ saveEntry }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800; opacity:{{ entrySaveOpacity }};">{{ t.saveEntry }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== SALARY / MEMBER SHEET ===== -->
+  <sc-if value="{{ memberOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:34; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px; margin-bottom:16px;">{{ memberTitle }}</div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.name }}</div>
+        <input value="{{ memberForm.name }}" onInput="{{ setMemberName }}" placeholder="{{ t.namePh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:14px;">
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.role }}</div>
+        <input value="{{ memberForm.role }}" onInput="{{ setMemberRole }}" placeholder="{{ t.rolePh }}" style="width:100%; height:48px; border-radius:14px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 14px; font-size:15px; outline:none; margin-bottom:14px;">
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.monthlySalary }}</div>
+        <div style="display:flex; align-items:center; height:52px; border-radius:15px; border:1px solid rgba(6,57,48,.14); background:#FFFDF8; padding:0 15px; gap:8px; margin-bottom:18px;">
+          <span style="font-size:15px; font-weight:800; color:rgba(6,57,48,.45);">E£</span>
+          <input type="number" value="{{ memberForm.salary }}" onInput="{{ setMemberSalary }}" style="flex:1; width:100%; border:none; outline:none; background:transparent; font-size:19px; font-weight:800;">
+        </div>
+
+        <button onClick="{{ saveMember }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800; opacity:{{ memberSaveOpacity }};">{{ t.save }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== LOG DELIVERY SHEET ===== -->
+  <sc-if value="{{ reportOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheets }}" style="position:absolute; inset:0; z-index:34; background:rgba(6,57,48,.34); animation:obDim .2s ease; display:flex; align-items:flex-end;">
+      <div onClick="{{ stop }}" class="obs" style="width:100%; max-height:92%; overflow-y:auto; background:#F7F5EE; border-radius:26px 26px 0 0; padding:10px 20px 24px; animation:obSheet .3s cubic-bezier(.22,1,.36,1);">
+        <div style="width:38px; height:4px; border-radius:999px; background:rgba(6,57,48,.18); margin:0 auto 14px;"></div>
+        <div style="font-size:21px; font-weight:800; letter-spacing:-.6px;">{{ t.logDelivery }}</div>
+        <div style="font-size:13px; font-weight:600; color:rgba(6,57,48,.5); margin:3px 0 18px;">{{ rp.project }}</div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.editor }}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:7px; margin-bottom:18px;">
+          <sc-for list="{{ rp.editors }}" as="e" hint-placeholder-count="3">
+            <button onClick="{{ e.onClick }}" style="display:flex; align-items:center; gap:7px; height:40px; padding:0 13px 0 6px; border-radius:12px; font-size:12.5px; font-weight:700; background:{{ e.bg }}; color:{{ e.fg }};">
+              <span style="width:26px; height:26px; border-radius:50%; background:{{ e.avBg }}; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;">{{ e.initials }}</span>{{ e.name }}
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="font-size:11px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:rgba(6,57,48,.42); margin-bottom:9px;">{{ t.videosDone }}</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; height:64px; border-radius:16px; background:rgba(6,57,48,.05); padding:0 10px; margin-bottom:16px;">
+          <button onClick="{{ decCount }}" style="width:44px; height:44px; border-radius:13px; background:#F7F5EE; font-size:22px; font-weight:700; line-height:1;">−</button>
+          <span style="font-size:28px; font-weight:800;">{{ rp.count }}</span>
+          <button onClick="{{ incCount }}" style="width:44px; height:44px; border-radius:13px; background:#F7F5EE; font-size:22px; font-weight:700; line-height:1;">+</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:15px; background:rgba(6,57,48,.05); margin-bottom:18px;">
+          <span style="font-size:13px; font-weight:600; color:rgba(6,57,48,.6);">{{ t.afterThis }}</span>
+          <b style="font-size:15px;">{{ rp.after }}</b>
+        </div>
+
+        <button onClick="{{ saveReport }}" style="width:100%; height:52px; border-radius:16px; background:#063930; color:#F2F0E9; font-size:15px; font-weight:800;">{{ t.submit }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== TOAST ===== -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; z-index:50; left:0; right:0; bottom:{{ toastBottom }}; display:flex; justify-content:center; pointer-events:none;">
+      <div style="background:#063930; color:#E0DCD0; padding:11px 20px; border-radius:999px; font-size:13px; font-weight:700; box-shadow:0 12px 28px -10px rgba(6,57,48,.7); animation:obPage .22s ease;">{{ toast }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ===== LAUNCH SCREEN ===== -->
+  <sc-if value="{{ launching }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; inset:0; z-index:90; background:#E0DCD0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px; animation:{{ launchAnim }};">
+      <img src="assets/obscura-lockup.png" alt="Obscura" style="width:62%; max-width:260px; height:auto; animation:obLaunchMark .9s cubic-bezier(.22,1,.36,1) both;">
+      <div style="width:104px; height:3px; border-radius:999px; background:rgba(6,57,48,.14); overflow:hidden;">
+        <div style="height:100%; width:100%; background:#063930; transform-origin:left center; animation:obLaunchBar 1.25s cubic-bezier(.4,0,.2,1) both;"></div>
+      </div>
+      <div style="position:absolute; bottom:38px; font-size:10.5px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:rgba(6,57,48,.35); animation:obPulse 1.6s ease-in-out infinite;">{{ t.branch }}</div>
+    </div>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:920},&quot;defaultLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en&quot;,&quot;ar&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;'en'|'ar'&quot;,&quot;section&quot;:&quot;Localization&quot;},&quot;usdRate&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:48,&quot;min&quot;:20,&quot;max&quot;:90,&quot;unit&quot;:&quot;EGP/USD&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Localization&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.today = new Date(2026,7,2,12);
+    const k = this.key(this.today);
+    this.state = {
+      launching:true, launchOut:false,
+      lang: this.props.defaultLang==='ar' ? 'ar' : 'en',
+      tab:'cal',
+      month:7, year:2026, selDate:k,
+      pickerYear:2026,
+      monthPickerOpen:false, bookOpen:false, detailId:null, gearId:null,
+      rentOpen:false, addGearOpen:false, entryOpen:false, memberOpen:false, memberId:null,
+      reportOpen:false, reportProj:null, reportEditor:null, reportCount:1,
+      gearFilter:'all', toast:null,
+      form:{client:'', phone:'', date:k, pkg:'half', hours:2, start:11, addOns:[]},
+      rentForm:{who:'', due:this.addDays(k,3), fee:300},
+      gearForm:{name:'', cat:'Lighting', qty:1, rate:300},
+      entryForm:{type:'out', cat:'Salary', label:'', amount:0, date:k},
+      memberForm:{name:'', role:'', salary:6000},
+      sessions:[
+        {id:1, client:'Zeina Cosmetics', phone:'0100 221 8890', date:'2026-08-02', start:11, pkg:'half', hours:5, addOns:[11,20], dep:true},
+        {id:2, client:'Cairo Motors', phone:'0122 447 1120', date:'2026-08-02', start:17, pkg:'hourly', hours:3, addOns:[30], dep:false},
+        {id:3, client:'Nile Apparel', phone:'0111 908 3345', date:'2026-08-05', start:10, pkg:'full', hours:10, addOns:[31,12], dep:true},
+        {id:4, client:'Halwa Bakery', phone:'0106 553 7781', date:'2026-08-09', start:13, pkg:'half', hours:5, addOns:[], dep:false},
+        {id:5, client:'Orbit Media', phone:'0128 330 6612', date:'2026-08-14', start:12, pkg:'full', hours:10, addOns:[32], dep:true}
+      ],
+      gear:[
+        {id:1,  name:'Godox SK300 II', cat:'Lighting', note:'Studio flash', qty:2, rate:300, st:'in'},
+        {id:2,  name:'Nanlite 200W', cat:'Lighting', note:'Continuous', qty:2, rate:300, st:'in'},
+        {id:3,  name:'Namtu 300W', cat:'Lighting', note:'Continuous', qty:1, rate:300, st:'in'},
+        {id:4,  name:'Nanlite Forza 300', cat:'Lighting', note:'Continuous', qty:1, rate:300, st:'in'},
+        {id:5,  name:'Godox 150 RGB', cat:'Lighting', note:'Full colour', qty:1, rate:500, st:'in'},
+        {id:6,  name:'Nanlite tube 77cm', cat:'Lighting', note:'Tube light', qty:1, rate:250, st:'in'},
+        {id:7,  name:'Neewer tube 77cm', cat:'Lighting', note:'Tube light', qty:1, rate:250, st:'in'},
+        {id:8,  name:'Nanlite Litolite 5C', cat:'Lighting', note:'Pocket LED panel', qty:2, rate:50, st:'in'},
+        {id:11, name:'Octabox 90cm', cat:'Modifiers', note:'Softbox', qty:3, rate:50, st:'in'},
+        {id:12, name:'Lantern box 65cm', cat:'Modifiers', note:'"Bela"', qty:1, rate:50, st:'in'},
+        {id:13, name:'Fresnel', cat:'Modifiers', note:'Spot', qty:1, rate:50, st:'in'},
+        {id:14, name:'Strip box 90cm', cat:'Modifiers', note:'Softbox', qty:1, rate:50, st:'in'},
+        {id:20, name:'Sony A7 III', cat:'Cameras', note:'Body', qty:1, rate:800, st:'in'},
+        {id:21, name:'Sony A7S III', cat:'Cameras', note:'Body', qty:1, rate:1500, st:'out', renter:'Karim Nabil', due:'2026-08-04'},
+        {id:22, name:'Sigma 24-70mm V2', cat:'Lenses', note:'Zoom', qty:1, rate:600, st:'in'},
+        {id:23, name:'Samyang 24mm', cat:'Lenses', note:'Cine T-stop', qty:1, rate:500, st:'in'},
+        {id:24, name:'Samyang 75mm', cat:'Lenses', note:'Cine T-stop', qty:1, rate:500, st:'in'},
+        {id:30, name:'DJI Ronin RS4', cat:'Accessories', note:'Gimbal', qty:2, rate:1000, st:'in'},
+        {id:31, name:'Hollyland mic', cat:'Accessories', note:'Wireless', qty:2, rate:300, st:'in'},
+        {id:32, name:'Video + Photo tripod', cat:'Grip', note:'Pair', qty:2, rate:100, st:'in'},
+        {id:33, name:'C-stand', cat:'Grip', note:'Support', qty:1, rate:50, st:'in'},
+        {id:34, name:'Reflectors S + L', cat:'Grip', note:'Bounce', qty:2, rate:50, st:'in'},
+        {id:35, name:'Super clamp', cat:'Accessories', note:'Rigging', qty:1, rate:200, st:'maint'},
+        {id:36, name:'Magic arm', cat:'Accessories', note:'Rigging', qty:1, rate:200, st:'in'},
+        {id:40, name:'White / green backdrop', cat:'Backdrops', note:'Cyclorama', qty:1, rate:300, st:'in'},
+        {id:50, name:'Tree lamp', cat:'Props', note:'Lamp', qty:1, rate:350, st:'in'},
+        {id:51, name:'Jute lamp', cat:'Props', note:'Lamp', qty:1, rate:100, st:'in'},
+        {id:52, name:'Wood lamp', cat:'Props', note:'Lamp', qty:1, rate:200, st:'in'},
+        {id:53, name:'Live-edge wooden table', cat:'Props', note:'Furniture', qty:1, rate:150, st:'in'},
+        {id:54, name:'Vintage Sony TV', cat:'Props', note:'Furniture', qty:1, rate:150, st:'in'},
+        {id:55, name:'Vintage cameras', cat:'Props', note:'Display only', qty:4, rate:50, st:'in'}
+      ],
+      projects:[
+        {id:1, client:'Zeina Cosmetics', title:'Ramadan campaign edits', value:10000, total:30, work:{1:12, 2:6}},
+        {id:2, client:'Cairo Motors', title:'Showroom reels', value:18000, total:24, work:{3:9, 1:4}},
+        {id:3, client:'Nile Apparel', title:'Lookbook cutdowns', value:7500, total:15, work:{2:15}}
+      ],
+      team:[
+        {id:1, name:'Youssef Adel', role:'Senior editor', salary:9000, paid:true},
+        {id:2, name:'Mariam Fathy', role:'Editor · colorist', salary:7500, paid:false},
+        {id:3, name:'Karim Nabil', role:'Motion designer', salary:8000, paid:false}
+      ],
+      entries:[
+        {id:1, type:'out', cat:'Rent', label:'Studio rent — August', amount:12000, date:'2026-08-01'},
+        {id:2, type:'out', cat:'Salary', label:'Youssef Adel — August', amount:9000, date:'2026-08-01'},
+        {id:3, type:'out', cat:'Utilities', label:'Electricity + internet', amount:1850, date:'2026-08-01'},
+        {id:4, type:'in', cat:'Rental', label:'Sony A7S III — Karim', amount:1500, date:'2026-08-01'},
+        {id:5, type:'out', cat:'Gear', label:'Replacement bulbs', amount:640, date:'2026-08-02'}
+      ]
+    };
+  }
+  componentDidMount(){
+    this._t1 = setTimeout(()=> this.setState({launchOut:true}), 1450);
+    this._t2 = setTimeout(()=> this.setState({launching:false}), 1800);
+  }
+  componentWillUnmount(){ clearTimeout(this._t1); clearTimeout(this._t2); clearTimeout(this._tt); }
+
+  // ---- helpers ----
+  PKG(){ return {
+    hourly:{hours:0, price:0, perHour:300},
+    half:{hours:5, price:1200},
+    full:{hours:10, price:2500}
+  }; }
+  OPEN(){ return 9; } CLOSE(){ return 23; }
+  USD(){ return this.props.usdRate || 48; }
+  pad(n){ return (n<10?'0':'')+n; }
+  key(d){ return d.getFullYear()+'-'+this.pad(d.getMonth()+1)+'-'+this.pad(d.getDate()); }
+  parse(k){ const p=String(k).split('-'); return new Date(+p[0],+p[1]-1,+p[2],12); }
+  addDays(k,n){ const d=this.parse(k); d.setDate(d.getDate()+n); return this.key(d); }
+  comma(n){ return Math.round(n).toLocaleString('en-US'); }
+  egp(n){ return (n<0?'−':'')+'E£'+this.comma(Math.abs(n)); }
+  usd(n){ return (n<0?'−':'')+'$'+this.comma(Math.abs(n)/this.USD()); }
+  L(v){ return '\u2066'+v+'\u2069'; }
+  hhmm(h){ const hr=((Math.floor(h)%24)+24)%24; const am=hr<12?'AM':'PM'; const d=hr%12===0?12:hr%12; return d+':00 '+am; }
+  initials(n){ const p=String(n).trim().split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+  sessHours(s){ return s.pkg==='hourly' ? s.hours : this.PKG()[s.pkg].hours; }
+  addOnTotal(ids){ return (ids||[]).reduce((a,id)=>{ const g=this.state.gear.find(x=>x.id===id); return a+(g?g.rate:0); },0); }
+  sessBase(s){ return s.pkg==='hourly' ? s.hours*this.PKG().hourly.perHour : this.PKG()[s.pkg].price; }
+  sessTotal(s){ return this.sessBase(s)+this.addOnTotal(s.addOns); }
+  delivered(p){ return Object.values(p.work).reduce((a,b)=>a+b,0); }
+  flash(msg){ clearTimeout(this._tt); this.setState({toast:msg}); this._tt=setTimeout(()=>this.setState({toast:null}),1900); }
+
+  get DICT(){ return {
+    en:{dir:'ltr', branch:'Mokattam Branch',
+      calendar:'Calendar', gear:'Gear', projects:'Projects', money:'Money', team:'Team',
+      today:'Today', noSessions:'No sessions booked', bookSession:'Book a session',
+      newSession:'New session', package:'Package', hourly:'Hourly', halfDay:'Half day', fullDay:'Full day',
+      minHours:'min 2 hours', fiveHours:'5 hours', tenHours:'10 hours', packageIncluded:'package included',
+      hours:'Hours', dateTime:'Date & start time', client:'Client', clientPh:'Client or brand name', phonePh:'Phone number',
+      addOns:'Add-ons', total:'Total', confirmBooking:'Confirm booking', deposit50:'50% deposit',
+      depositDue:'50% deposit to confirm', date:'Date', time:'Time', included:'Included',
+      cancel:'Cancel', markPaid:'Mark deposit paid', depositPaid:'Deposit paid',
+      confirmed:'Confirmed', pending:'Pending', done:'Done',
+      perSession:'session', qty:'Qty', rate:'Rate', status:'Status',
+      inStudio:'In studio', rentedOut:'Rented', maintenance:'Repair',
+      all:'All', available:'Available', out:'Out',
+      rentOut:'Rent out', markReturned:'Mark returned', remove:'Remove', renter:'Renter', renterPh:'Who is renting it',
+      dueBack:'Due back', fee:'Fee', confirmRental:'Confirm rental',
+      addGear:'Add equipment', gearName:'Equipment name', gearNamePh:'e.g. Aputure 600D', category:'Category',
+      ratePerSession:'Rate / session', saveGear:'Save equipment', photoPh:'Drop a photo of the gear',
+      netProfit:'Net profit', income:'Income', expenses:'Expenses', expense:'Expense',
+      sessionRevenue:'Sessions', rentalRevenue:'Rentals', payroll:'Payroll',
+      ledger:'Ledger', addEntry:'Add entry', note:'Note', notePh:'What is it for', amount:'Amount', saveEntry:'Save entry',
+      payrollMonth:'Payroll this month', paid:'Paid out', salary:'Salary', delivered:'Delivered',
+      editSalary:'Edit', paySalary:'Pay salary', salaryPaid:'Paid', addMember:'Add team member',
+      name:'Name', namePh:'Full name', role:'Role', rolePh:'e.g. Editor', monthlySalary:'Monthly salary', save:'Save',
+      logDelivery:'Log delivery', editor:'Editor', videosDone:'Videos completed', afterThis:'After this report', submit:'Submit',
+      videos:'videos', onTrack:'On track', behind:'Behind', complete:'Complete',
+      savedBooking:'Session booked', savedGear:'Equipment added', savedEntry:'Entry added', savedRental:'Gear rented out',
+      returned:'Gear returned', salaryPaidToast:'Salary recorded', removed:'Removed', reported:'Delivery logged',
+      months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+      mShort:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      wd:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], wdS:['S','M','T','W','T','F','S']},
+    ar:{dir:'rtl', branch:'فرع المقطم',
+      calendar:'التقويم', gear:'المعدات', projects:'المشاريع', money:'المالية', team:'الفريق',
+      today:'اليوم', noSessions:'لا توجد جلسات', bookSession:'احجز جلسة',
+      newSession:'جلسة جديدة', package:'الباكدج', hourly:'بالساعة', halfDay:'نصف يوم', fullDay:'يوم كامل',
+      minHours:'ساعتان كحد أدنى', fiveHours:'٥ ساعات', tenHours:'١٠ ساعات', packageIncluded:'الباكدج مشمول',
+      hours:'الساعات', dateTime:'التاريخ ووقت البدء', client:'العميل', clientPh:'اسم العميل أو العلامة', phonePh:'رقم الهاتف',
+      addOns:'إضافات', total:'الإجمالي', confirmBooking:'تأكيد الحجز', deposit50:'عربون ٥٠٪',
+      depositDue:'عربون ٥٠٪ لتأكيد الحجز', date:'التاريخ', time:'الوقت', included:'مشمول',
+      cancel:'إلغاء', markPaid:'تسجيل دفع العربون', depositPaid:'العربون مدفوع',
+      confirmed:'مؤكد', pending:'معلّق', done:'منتهي',
+      perSession:'جلسة', qty:'العدد', rate:'السعر', status:'الحالة',
+      inStudio:'بالاستوديو', rentedOut:'مُستأجر', maintenance:'صيانة',
+      all:'الكل', available:'متاح', out:'خارج',
+      rentOut:'تأجير', markReturned:'تم الإرجاع', remove:'حذف', renter:'المستأجر', renterPh:'من سيستأجرها',
+      dueBack:'موعد الإرجاع', fee:'الأجر', confirmRental:'تأكيد التأجير',
+      addGear:'إضافة معدة', gearName:'اسم المعدة', gearNamePh:'مثال: Aputure 600D', category:'التصنيف',
+      ratePerSession:'السعر / جلسة', saveGear:'حفظ المعدة', photoPh:'أضف صورة للمعدة',
+      netProfit:'صافي الربح', income:'الإيرادات', expenses:'المصروفات', expense:'مصروف',
+      sessionRevenue:'الجلسات', rentalRevenue:'التأجير', payroll:'الرواتب',
+      ledger:'دفتر الحسابات', addEntry:'إضافة حركة', note:'الوصف', notePh:'ما الغرض', amount:'المبلغ', saveEntry:'حفظ',
+      payrollMonth:'رواتب الشهر', paid:'المدفوع', salary:'الراتب', delivered:'المُسلَّم',
+      editSalary:'تعديل', paySalary:'دفع الراتب', salaryPaid:'مدفوع', addMember:'إضافة عضو',
+      name:'الاسم', namePh:'الاسم الكامل', role:'الوظيفة', rolePh:'مثال: محرر', monthlySalary:'الراتب الشهري', save:'حفظ',
+      logDelivery:'تسجيل تسليم', editor:'المحرر', videosDone:'الفيديوهات المنجزة', afterThis:'بعد هذا التسجيل', submit:'إرسال',
+      videos:'فيديو', onTrack:'على المسار', behind:'متأخر', complete:'مكتمل',
+      savedBooking:'تم حجز الجلسة', savedGear:'تمت إضافة المعدة', savedEntry:'تمت إضافة الحركة', savedRental:'تم التأجير',
+      returned:'تم إرجاع المعدة', salaryPaidToast:'تم تسجيل الراتب', removed:'تم الحذف', reported:'تم تسجيل التسليم',
+      months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'],
+      mShort:['ينا','فبر','مار','أبر','ماي','يون','يول','أغس','سبت','أكت','نوف','ديس'],
+      wd:['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'], wdS:['ح','ن','ث','ر','خ','ج','س']}
+  }; }
+
+  // ---- nav ----
+  toggleLang(){ this.setState(s=>({lang:s.lang==='en'?'ar':'en'})); }
+  setTab(k){ this.setState({tab:k}); }
+  stop(e){ e.stopPropagation(); }
+  closeSheets(){ this.setState({monthPickerOpen:false, bookOpen:false, detailId:null, gearId:null, rentOpen:false, addGearOpen:false, entryOpen:false, memberOpen:false, memberId:null, reportOpen:false}); }
+  shiftMonth(n){ this.setState(s=>{ let m=s.month+n, y=s.year; if(m<0){m=11;y--;} if(m>11){m=0;y++;} return {month:m, year:y}; }); }
+  goToday(){ this.setState({month:this.today.getMonth(), year:this.today.getFullYear(), selDate:this.key(this.today)}); }
+  pickDay(k){ this.setState({selDate:k}); }
+  openMonthPicker(){ this.setState(s=>({monthPickerOpen:true, pickerYear:s.year})); }
+  shiftPickerYear(n){ this.setState(s=>({pickerYear:s.pickerYear+n})); }
+  choseMonth(m){ this.setState(s=>({month:m, year:s.pickerYear, monthPickerOpen:false})); }
+
+  // ---- booking ----
+  openBook(){ this.setState(s=>({bookOpen:true, form:{client:'', phone:'', date:s.selDate, pkg:'half', hours:2, start:11, addOns:[]}})); }
+  setPkg(p){ this.setState(s=>({form:{...s.form, pkg:p}})); }
+  setClient(e){ const v=e.target.value; this.setState(s=>({form:{...s.form, client:v}})); }
+  setPhone(e){ const v=e.target.value; this.setState(s=>({form:{...s.form, phone:v}})); }
+  setDate(e){ const v=e.target.value; if(v) this.setState(s=>({form:{...s.form, date:v}})); }
+  setStart(h){ this.setState(s=>({form:{...s.form, start:h}})); }
+  incHours(){ this.setState(s=>({form:{...s.form, hours:Math.min(12,s.form.hours+1)}})); }
+  decHours(){ this.setState(s=>({form:{...s.form, hours:Math.max(2,s.form.hours-1)}})); }
+  toggleAddOn(id){ this.setState(s=>{ const a=s.form.addOns.includes(id)? s.form.addOns.filter(x=>x!==id) : [...s.form.addOns,id]; return {form:{...s.form, addOns:a}}; }); }
+  saveSession(){
+    const f=this.state.form;
+    if(!f.client.trim()||!f.date) return;
+    const hours = f.pkg==='hourly' ? f.hours : this.PKG()[f.pkg].hours;
+    this.setState(s=>({bookOpen:false, selDate:f.date,
+      month:this.parse(f.date).getMonth(), year:this.parse(f.date).getFullYear(),
+      sessions:[...s.sessions, {id:Date.now(), client:f.client.trim(), phone:f.phone.trim(), date:f.date, start:f.start, pkg:f.pkg, hours, addOns:f.addOns, dep:false}]}));
+    this.flash(this.DICT[this.state.lang].savedBooking);
+  }
+  openDetail(id){ this.setState({detailId:id}); }
+  toggleDeposit(){ this.setState(s=>({sessions:s.sessions.map(x=>x.id===s.detailId?{...x,dep:!x.dep}:x)})); }
+  deleteSession(){ this.setState(s=>({sessions:s.sessions.filter(x=>x.id!==s.detailId), detailId:null})); this.flash(this.DICT[this.state.lang].removed); }
+
+  // ---- gear ----
+  setGearFilter(v){ this.setState({gearFilter:v}); }
+  openGear(id){ this.setState({gearId:id}); }
+  openRent(){ this.setState(s=>({rentOpen:true, rentForm:{who:'', due:this.addDays(s.selDate,3), fee:(s.gear.find(g=>g.id===s.gearId)||{}).rate||300}})); }
+  setRenter(e){ const v=e.target.value; this.setState(s=>({rentForm:{...s.rentForm, who:v}})); }
+  setRentDue(e){ const v=e.target.value; this.setState(s=>({rentForm:{...s.rentForm, due:v}})); }
+  setRentFee(e){ const v=+e.target.value||0; this.setState(s=>({rentForm:{...s.rentForm, fee:v}})); }
+  saveRent(){
+    const {rentForm, gearId, lang}=this.state;
+    const g=this.state.gear.find(x=>x.id===gearId); if(!g) return;
+    const who=rentForm.who.trim()|| (lang==='ar'?'مستأجر':'Renter');
+    this.setState(s=>({rentOpen:false, gearId:null,
+      gear:s.gear.map(x=>x.id===gearId?{...x, st:'out', renter:who, due:rentForm.due}:x),
+      entries:[{id:Date.now(), type:'in', cat:'Rental', label:g.name+' — '+who, amount:rentForm.fee, date:s.selDate}, ...s.entries]}));
+    this.flash(this.DICT[lang].savedRental);
+  }
+  returnGear(){ this.setState(s=>({gear:s.gear.map(x=>x.id===s.gearId?{...x, st:'in', renter:null, due:null}:x), gearId:null})); this.flash(this.DICT[this.state.lang].returned); }
+  removeGear(){ this.setState(s=>({gear:s.gear.filter(x=>x.id!==s.gearId), gearId:null})); this.flash(this.DICT[this.state.lang].removed); }
+  openAddGear(){ this.setState({addGearOpen:true, gearForm:{name:'', cat:'Lighting', qty:1, rate:300}}); }
+  setGearName(e){ const v=e.target.value; this.setState(s=>({gearForm:{...s.gearForm, name:v}})); }
+  setGearCat(c){ this.setState(s=>({gearForm:{...s.gearForm, cat:c}})); }
+  setGearRate(e){ const v=+e.target.value||0; this.setState(s=>({gearForm:{...s.gearForm, rate:v}})); }
+  incGearQty(){ this.setState(s=>({gearForm:{...s.gearForm, qty:Math.min(20,s.gearForm.qty+1)}})); }
+  decGearQty(){ this.setState(s=>({gearForm:{...s.gearForm, qty:Math.max(1,s.gearForm.qty-1)}})); }
+  saveGear(){
+    const g=this.state.gearForm; if(!g.name.trim()) return;
+    this.setState(s=>({addGearOpen:false, gear:[...s.gear, {id:Date.now(), name:g.name.trim(), cat:g.cat, note:'', qty:g.qty, rate:g.rate, st:'in'}]}));
+    this.flash(this.DICT[this.state.lang].savedGear);
+  }
+
+  // ---- finance ----
+  openAddEntry(){ this.setState(s=>({entryOpen:true, entryForm:{type:'out', cat:'Salary', label:'', amount:0, date:s.selDate}})); }
+  setEntryType(v){ this.setState(s=>({entryForm:{...s.entryForm, type:v, cat: v==='in'?'Session':'Salary'}})); }
+  setEntryCat(c){ this.setState(s=>({entryForm:{...s.entryForm, cat:c}})); }
+  setEntryLabel(e){ const v=e.target.value; this.setState(s=>({entryForm:{...s.entryForm, label:v}})); }
+  setEntryAmount(e){ const v=+e.target.value||0; this.setState(s=>({entryForm:{...s.entryForm, amount:v}})); }
+  setEntryDate(e){ const v=e.target.value; this.setState(s=>({entryForm:{...s.entryForm, date:v}})); }
+  saveEntry(){
+    const f=this.state.entryForm; if(!f.amount) return;
+    this.setState(s=>({entryOpen:false, entries:[{id:Date.now(), type:f.type, cat:f.cat, label:f.label.trim()||f.cat, amount:f.amount, date:f.date}, ...s.entries]}));
+    this.flash(this.DICT[this.state.lang].savedEntry);
+  }
+
+  // ---- team ----
+  openMember(id){
+    const m = id ? this.state.team.find(x=>x.id===id) : null;
+    this.setState({memberOpen:true, memberId:id||null,
+      memberForm: m ? {name:m.name, role:m.role, salary:m.salary} : {name:'', role:'', salary:6000}});
+  }
+  setMemberName(e){ const v=e.target.value; this.setState(s=>({memberForm:{...s.memberForm, name:v}})); }
+  setMemberRole(e){ const v=e.target.value; this.setState(s=>({memberForm:{...s.memberForm, role:v}})); }
+  setMemberSalary(e){ const v=+e.target.value||0; this.setState(s=>({memberForm:{...s.memberForm, salary:v}})); }
+  saveMember(){
+    const f=this.state.memberForm; if(!f.name.trim()) return;
+    this.setState(s=>({memberOpen:false,
+      team: s.memberId
+        ? s.team.map(x=>x.id===s.memberId?{...x, name:f.name.trim(), role:f.role.trim()||x.role, salary:f.salary}:x)
+        : [...s.team, {id:Date.now(), name:f.name.trim(), role:f.role.trim()||'Editor', salary:f.salary, paid:false}],
+      memberId:null}));
+  }
+  paySalary(id){
+    const m=this.state.team.find(x=>x.id===id); if(!m||m.paid) return;
+    this.setState(s=>({team:s.team.map(x=>x.id===id?{...x,paid:true}:x),
+      entries:[{id:Date.now(), type:'out', cat:'Salary', label:m.name+' — '+this.DICT[s.lang].months[s.month], amount:m.salary, date:s.selDate}, ...s.entries]}));
+    this.flash(this.DICT[this.state.lang].salaryPaidToast);
+  }
+
+  // ---- projects ----
+  openReport(pid){ this.setState({reportOpen:true, reportProj:pid, reportEditor:null, reportCount:1}); }
+  pickEditor(id){ this.setState({reportEditor:id}); }
+  incCount(){ this.setState(s=>({reportCount:s.reportCount+1})); }
+  decCount(){ this.setState(s=>({reportCount:Math.max(1,s.reportCount-1)})); }
+  saveReport(){
+    const {reportProj, reportEditor, reportCount, team}=this.state;
+    const ed=reportEditor||team[0].id;
+    this.setState(s=>({reportOpen:false, projects:s.projects.map(p=>{
+      if(p.id!==reportProj) return p;
+      const w={...p.work}; w[ed]=(w[ed]||0)+reportCount;
+      const sum=Object.values(w).reduce((a,b)=>a+b,0);
+      if(sum>p.total) w[ed]-=(sum-p.total);
+      return {...p, work:w};
+    })}));
+    this.flash(this.DICT[this.state.lang].reported);
+  }
+
+  renderVals(){
+    const s=this.state, t=this.DICT[s.lang], P=this.PKG();
+    const isMobile = typeof window!=='undefined' && window.matchMedia && window.matchMedia('(max-width: 520px)').matches;
+    const chip=(on)=> on ? {bg:'#063930', fg:'#F2F0E9'} : {bg:'rgba(6,57,48,.06)', fg:'rgba(6,57,48,.62)'};
+
+    // ---- month grid ----
+    const first=new Date(s.year,s.month,1,12);
+    const offset=first.getDay();
+    const dim=new Date(s.year,s.month+1,0).getDate();
+    const monthCells=[];
+    for(let i=0;i<offset;i++) monthCells.push({num:'', bg:'transparent', fg:'transparent', dot:'transparent', op:'0', weight:'600', onClick:()=>{}});
+    for(let d=1;d<=dim;d++){
+      const k=s.year+'-'+this.pad(s.month+1)+'-'+this.pad(d);
+      const active=k===s.selDate;
+      const isToday=k===this.key(this.today);
+      const has=s.sessions.some(x=>x.date===k);
+      monthCells.push({num:d, onClick:()=>this.pickDay(k), op:'1',
+        bg: active?'#063930':(isToday?'rgba(6,57,48,.08)':'transparent'),
+        fg: active?'#F2F0E9':'#063930', weight: (active||isToday)?'800':'600',
+        dot: has ? (active?'rgba(242,240,233,.85)':'#B29A6E') : 'transparent'});
+    }
+
+    // ---- day sessions ----
+    const daySessions=s.sessions.filter(x=>x.date===s.selDate).sort((a,b)=>a.start-b.start).map(x=>{
+      const hrs=this.sessHours(x);
+      const pkgLabel = x.pkg==='hourly' ? (this.L(hrs+'h')+' · '+t.hourly) : (x.pkg==='half'?t.halfDay:t.fullDay);
+      const total=this.sessTotal(x);
+      return {client:x.client, pkgLabel, time:this.hhmm(x.start)+' – '+this.hhmm(x.start+hrs),
+        egp:this.egp(total), usd:this.usd(total),
+        badge: x.dep?t.confirmed:t.pending,
+        badgeBg: x.dep?'rgba(6,57,48,.1)':'rgba(196,100,63,.12)',
+        badgeFg: x.dep?'#063930':'#C4643F',
+        onClick:()=>this.openDetail(x.id)};
+    });
+    const dayD=this.parse(s.selDate);
+    const dayHrs=s.sessions.filter(x=>x.date===s.selDate).reduce((a,x)=>a+this.sessHours(x),0);
+    const dayRev=s.sessions.filter(x=>x.date===s.selDate).reduce((a,x)=>a+this.sessTotal(x),0);
+
+    // ---- gear ----
+    const stMap={in:{l:t.inStudio, c:'#0A6B4F'}, out:{l:t.rentedOut, c:'#C4643F'}, maint:{l:t.maintenance, c:'#8A7A4E'}};
+    const filtered=s.gear.filter(g=> s.gearFilter==='all' ? true : (s.gearFilter==='in' ? g.st==='in' : g.st!=='in'));
+    const catOrder=['Lighting','Modifiers','Cameras','Lenses','Accessories','Grip','Backdrops','Props'];
+    const gearGroups=catOrder.map(c=>({cat:c, items:filtered.filter(g=>g.cat===c).map(g=>({
+      name:g.name, qtyLabel:this.L(g.qty+'×'), rate:this.egp(g.rate),
+      sub: g.st==='out' ? (stMap.out.l+' · '+(g.renter||'')) : (g.note||stMap[g.st].l),
+      subColor: g.st==='in' ? 'rgba(6,57,48,.45)' : stMap[g.st].c,
+      tileBg: g.st==='in' ? 'rgba(6,57,48,.07)' : (g.st==='out'?'rgba(196,100,63,.13)':'rgba(138,122,78,.15)'),
+      tileFg: g.st==='in' ? '#063930' : stMap[g.st].c,
+      onClick:()=>this.openGear(g.id)}))})).filter(g=>g.items.length);
+    const gearStats=[
+      {label:t.all, value:''+s.gear.length, color:'#063930'},
+      {label:t.available, value:''+s.gear.filter(g=>g.st==='in').length, color:'#0A6B4F'},
+      {label:t.out, value:''+s.gear.filter(g=>g.st!=='in').length, color:'#C4643F'}
+    ];
+    const gf=(v,l)=>({label:l, onClick:()=>this.setGearFilter(v),
+      bg: s.gearFilter===v?'#F7F5EE':'transparent', fg: s.gearFilter===v?'#063930':'rgba(6,57,48,.5)',
+      shadow: s.gearFilter===v?'0 2px 8px -3px rgba(6,57,48,.35)':'none'});
+    const gearFilters=[gf('all',t.all), gf('in',t.available), gf('out',t.out)];
+
+    // ---- projects ----
+    const projects=s.projects.map(p=>{
+      const done=this.delivered(p), pct=Math.round(done/p.total*100);
+      const st = pct>=100?{l:t.complete,bg:'#063930',fg:'#E0DCD0'} : pct>=50?{l:t.onTrack,bg:'rgba(6,57,48,.1)',fg:'#063930'} : {l:t.behind,bg:'rgba(196,100,63,.12)',fg:'#C4643F'};
+      return {client:p.client, title:p.title, status:st.l, stBg:st.bg, stFg:st.fg,
+        progressLabel:this.L(done+' / '+p.total)+' '+t.videos, pct:pct+'%',
+        valueEgp:this.egp(p.value), perVideo:this.L(this.egp(p.value/p.total))+' / '+t.videos.replace(/s$/,''),
+        editors:Object.keys(p.work).map(id=>{ const e=s.team.find(x=>x.id===+id); return {initials:e?this.initials(e.name):'?', label:(e?e.name.split(' ')[0]:'')+' · '+this.L(p.work[id])}; }),
+        onReport:()=>this.openReport(p.id)};
+    });
+
+    // ---- finance ----
+    const inMonth=(k)=>{ const d=this.parse(k); return d.getMonth()===s.month && d.getFullYear()===s.year; };
+    const monthSessions=s.sessions.filter(x=>inMonth(x.date));
+    const sessRev=monthSessions.reduce((a,x)=>a+this.sessTotal(x),0);
+    const monthEntries=s.entries.filter(e=>inMonth(e.date));
+    const entryIn=monthEntries.filter(e=>e.type==='in').reduce((a,e)=>a+e.amount,0);
+    const entryOut=monthEntries.filter(e=>e.type==='out').reduce((a,e)=>a+e.amount,0);
+    const rentalRev=monthEntries.filter(e=>e.type==='in'&&e.cat==='Rental').reduce((a,e)=>a+e.amount,0);
+    const totalIn=sessRev+entryIn, net=totalIn-entryOut;
+    const payrollOut=monthEntries.filter(e=>e.type==='out'&&e.cat==='Salary').reduce((a,e)=>a+e.amount,0);
+    const fin={netEgp:this.egp(net), netUsd:this.usd(net), inEgp:this.egp(totalIn), outEgp:this.egp(entryOut)};
+    const finBreak=[
+      {label:t.sessionRevenue, value:this.egp(sessRev)},
+      {label:t.rentalRevenue, value:this.egp(rentalRev)},
+      {label:t.payroll, value:this.egp(payrollOut)}
+    ];
+    const ledgerRows=[
+      ...monthSessions.map(x=>({id:'s'+x.id, type:'in', cat:'Session', label:x.client, amount:this.sessTotal(x), date:x.date})),
+      ...monthEntries
+    ].sort((a,b)=> a.date<b.date?1:(a.date>b.date?-1:0));
+    const catName=(c)=>({Session:t.sessionRevenue, Rental:t.rentalRevenue, Salary:t.salary, Rent:'Rent', Utilities:'Utilities', Gear:t.gear, Other:'Other'}[c]||c);
+    const ledger=ledgerRows.map(e=>{
+      const d=this.parse(e.date);
+      return {label:e.label, meta:catName(e.cat)+' · '+this.L(d.getDate()+' '+t.mShort[d.getMonth()]),
+        amount:(e.type==='in'?'+':'−')+this.egp(e.amount),
+        amtColor: e.type==='in'?'#063930':'#C4643F',
+        iconBg: e.type==='in'?'rgba(6,57,48,.08)':'rgba(196,100,63,.1)',
+        iconFg: e.type==='in'?'#063930':'#C4643F',
+        arrow: e.type==='in'?'rotate(180deg)':'none'};
+    });
+
+    // ---- team ----
+    const team=s.team.map(m=>{
+      let done=0; s.projects.forEach(p=>{ if(p.work[m.id]) done+=p.work[m.id]; });
+      return {name:m.name, role:m.role, initials:this.initials(m.name),
+        salary:this.egp(m.salary), done:''+done,
+        stLabel: m.paid?t.salaryPaid:t.pending,
+        stBg: m.paid?'rgba(6,57,48,.1)':'rgba(196,100,63,.12)',
+        stFg: m.paid?'#063930':'#C4643F',
+        payLabel: m.paid?t.salaryPaid:t.paySalary,
+        payBg: m.paid?'rgba(6,57,48,.06)':'#063930',
+        payFg: m.paid?'rgba(6,57,48,.4)':'#F2F0E9',
+        onEdit:()=>this.openMember(m.id), onPay:()=>this.paySalary(m.id)};
+    });
+    const payTotal=s.team.reduce((a,m)=>a+m.salary,0);
+    const payPaid=s.team.filter(m=>m.paid).reduce((a,m)=>a+m.salary,0);
+
+    // ---- booking form ----
+    const f=s.form; const fIsHourly=f.pkg==='hourly';
+    const fHours = fIsHourly ? f.hours : P[f.pkg].hours;
+    const base = fIsHourly ? f.hours*P.hourly.perHour : P[f.pkg].price;
+    const addSum=this.addOnTotal(f.addOns);
+    const fTotal=base+addSum;
+    const pk=(id,label,sub,price)=>{ const on=f.pkg===id; return {label, sub, price,
+      onClick:()=>this.setPkg(id),
+      bg: on?'#063930':'rgba(6,57,48,.045)', fg: on?'#F2F0E9':'#063930',
+      ring: on?'none':'inset 0 0 0 1px rgba(6,57,48,.09)',
+      dotBorder: on?'rgba(242,240,233,.7)':'rgba(6,57,48,.25)',
+      dotFill: on?'#F2F0E9':'transparent'}; };
+    const pkgOptions=[
+      pk('hourly', t.hourly, t.minHours, this.egp(300)+'/h'),
+      pk('half', t.halfDay, t.fiveHours+' · '+t.packageIncluded, this.egp(1200)),
+      pk('full', t.fullDay, t.tenHours+' · '+t.packageIncluded, this.egp(2500))
+    ];
+    const startOptions=[]; 
+    for(let h=this.OPEN(); h<=this.CLOSE()-1; h++){
+      const fits = h+fHours <= this.CLOSE();
+      startOptions.push({label:this.hhmm(h), onClick:()=>this.setStart(h), op: fits?'1':'.35', ...chip(f.start===h)});
+    }
+    const popularAddOns=[20,21,22,30,31,40,5,11];
+    const addOnOptions=popularAddOns.map(id=>s.gear.find(g=>g.id===id)).filter(Boolean).map(g=>({
+      label:g.name, price:this.egp(g.rate), onClick:()=>this.toggleAddOn(g.id), ...chip(f.addOns.includes(g.id))}));
+
+    // ---- detail ----
+    let d={}; const ds=s.sessions.find(x=>x.id===s.detailId);
+    if(ds){ const hrs=this.sessHours(ds); const dd=this.parse(ds.date); const total=this.sessTotal(ds);
+      d={client:ds.client, phone:ds.phone||'—',
+        badge: ds.dep?t.confirmed:t.pending,
+        badgeBg: ds.dep?'rgba(6,57,48,.1)':'rgba(196,100,63,.12)', badgeFg: ds.dep?'#063930':'#C4643F',
+        date:t.wd[dd.getDay()]+', '+this.L(dd.getDate()+' '+t.mShort[dd.getMonth()]),
+        time:this.hhmm(ds.start)+' – '+this.hhmm(ds.start+hrs),
+        pkg: ds.pkg==='hourly'?(this.L(hrs+'h')+' '+t.hourly):(ds.pkg==='half'?t.halfDay:t.fullDay),
+        included: this.L('2×')+' SK300 II',
+        hasAddOns:(ds.addOns||[]).length>0,
+        addOns:(ds.addOns||[]).map(id=>{ const g=s.gear.find(x=>x.id===id); return {name:g?g.name:'—', price:g?this.egp(g.rate):''}; }),
+        totalEgp:this.egp(total), deposit:this.egp(total*.5),
+        depBtnLabel: ds.dep?t.depositPaid:t.markPaid,
+        depBtnBg: ds.dep?'rgba(6,57,48,.08)':'#063930',
+        depBtnFg: ds.dep?'rgba(6,57,48,.45)':'#F2F0E9'}; }
+
+    // ---- gear detail ----
+    let g={}; const gs=s.gear.find(x=>x.id===s.gearId);
+    if(gs){ const due=gs.due?this.parse(gs.due):null;
+      g={cat:gs.cat, name:gs.name, qty:this.L(gs.qty+'×'), rate:this.egp(gs.rate),
+        stLabel:stMap[gs.st].l, stColor:stMap[gs.st].c, isOut:gs.st==='out', canRent:gs.st==='in',
+        renter:gs.renter||'', dueLabel: due ? (t.dueBack+' · '+this.L(due.getDate()+' '+t.mShort[due.getMonth()])) : ''}; }
+
+    // ---- report ----
+    const rproj=s.projects.find(p=>p.id===s.reportProj);
+    const rEd=s.reportEditor||s.team[0].id;
+    const rp = rproj ? {project:rproj.client+' · '+rproj.title, count:s.reportCount,
+      editors:s.team.map(e=>{ const on=rEd===e.id; return {name:e.name.split(' ')[0], initials:this.initials(e.name),
+        onClick:()=>this.pickEditor(e.id), avBg: on?'rgba(242,240,233,.2)':'rgba(6,57,48,.1)', ...chip(on)}; }),
+      after: this.L(Math.min(rproj.total, this.delivered(rproj)+s.reportCount)+' / '+rproj.total)} : {editors:[], count:s.reportCount, project:''};
+
+    const tb=(k)=>({onClick:()=>this.setTab(k),
+      color: s.tab===k ? '#063930' : 'rgba(6,57,48,.36)', sw: s.tab===k ? 2.2 : 1.75});
+
+    const entryCatsIn=['Session','Rental','Other'], entryCatsOut=['Salary','Rent','Utilities','Gear','Other'];
+    const ecList=(s.entryForm.type==='in'?entryCatsIn:entryCatsOut).map(c=>({label:catName(c), onClick:()=>this.setEntryCat(c), ...chip(s.entryForm.cat===c)}));
+
+    return {
+      dir:t.dir, t, langLabel: s.lang==='en'?'ع':'EN',
+      launching:s.launching, launchAnim: s.launchOut?'obLaunchOut .35s ease forwards':'none',
+      outerBg: isMobile?'#E0DCD0':'#CFCABA', outerPad: isMobile?'0':'24px',
+      shellW: isMobile?'100%':'404px', shellH: isMobile?'100%':'860px',
+      shellMaxH: isMobile?'100%':'calc(100vh - 48px)',
+      shellR: isMobile?'0':'42px',
+      shellShadow: isMobile?'none':'0 40px 90px -30px rgba(6,57,48,.55), 0 0 0 10px rgba(6,57,48,.1)',
+      statusH: isMobile?'54px':'44px',
+      statusPad: isMobile?'0 26px calc(6px + env(safe-area-inset-top) * 0)':'0 26px 6px',
+      chromeBg:'rgba(224,220,208,.92)',
+      tabPadBottom: isMobile?'calc(6px + env(safe-area-inset-bottom))':'8px',
+      fabBottom: isMobile?'calc(84px + env(safe-area-inset-bottom))':'86px',
+      toastBottom: isMobile?'calc(96px + env(safe-area-inset-bottom))':'98px',
+      chev: t.dir==='rtl'?'scaleX(-1)':'none',
+      tabCal:tb('cal'), tabGear:tb('gear'), tabProj:tb('proj'), tabMoney:tb('money'), tabTeam:tb('team'),
+      showFab: s.tab==='cal',
+      pageTitle: s.tab==='cal'?t.calendar:(s.tab==='gear'?t.gear:(s.tab==='proj'?t.projects:(s.tab==='money'?t.money:t.team))),
+      isCal:s.tab==='cal', isGear:s.tab==='gear', isProj:s.tab==='proj', isMoney:s.tab==='money', isTeam:s.tab==='team',
+      monthLabel:t.months[s.month]+' '+this.L(s.year), wdShort:t.wdS, monthCells,
+      dayLabel:t.wd[dayD.getDay()]+', '+this.L(dayD.getDate()+' '+t.months[dayD.getMonth()]),
+      daySummary: daySessions.length ? (this.L(dayHrs+'h')+' · '+this.egp(dayRev)) : '',
+      daySessions, dayEmpty: daySessions.length===0,
+      monthPickerOpen:s.monthPickerOpen, pickerYear:this.L(s.pickerYear),
+      pickerMonths:t.mShort.map((m,i)=>({label:m, onClick:()=>this.choseMonth(i),
+        bg: (i===s.month&&s.pickerYear===s.year)?'#063930':'rgba(6,57,48,.05)',
+        fg: (i===s.month&&s.pickerYear===s.year)?'#F2F0E9':'#063930'})),
+      gearStats, gearFilters, gearGroups,
+      projects, fin, finBreak, ledger, finMonthLabel:t.mShort[s.month],
+      team, payrollTotal:this.egp(payTotal), payrollPaid:this.egp(payPaid),
+      payrollColor: payPaid>=payTotal?'#0A6B4F':'#C4643F',
+      bookOpen:s.bookOpen, pkgOptions, startOptions, addOnOptions,
+      f:{...f, isHourly:fIsHourly, hoursLabel:this.L(f.hours+' h'),
+        pkgSummary: fIsHourly ? (this.L(f.hours+'h')+' × '+this.egp(300)) : (f.pkg==='half'?t.halfDay:t.fullDay),
+        pkgPrice:this.egp(base), hasAddOns:f.addOns.length>0,
+        addOnSummary:this.L(f.addOns.length)+' '+t.addOns, addOnPrice:this.egp(addSum),
+        totalEgp:this.egp(fTotal), totalUsd:this.usd(fTotal),
+        depositNote:t.depositDue+' · '+this.egp(fTotal*.5)},
+      saveOpacity: f.client.trim()?'1':'.55',
+      detailOpen:!!ds, d,
+      gearSheetOpen:!!gs, g,
+      rentOpen:s.rentOpen, rentForm:s.rentForm, rentName:(gs&&gs.name)||'',
+      addGearOpen:s.addGearOpen, gearForm:s.gearForm, gearSaveOpacity: s.gearForm.name.trim()?'1':'.55',
+      catOptions:['Lighting','Modifiers','Cameras','Lenses','Accessories','Grip','Backdrops','Props'].map(c=>({label:c, onClick:()=>this.setGearCat(c), ...chip(s.gearForm.cat===c)})),
+      entryOpen:s.entryOpen, entryForm:s.entryForm, entryCats:ecList,
+      eIn:chip(s.entryForm.type==='in'), eOut:chip(s.entryForm.type==='out'),
+      entrySaveOpacity: s.entryForm.amount?'1':'.55',
+      memberOpen:s.memberOpen, memberForm:s.memberForm,
+      memberTitle: s.memberId?t.editSalary+' · '+t.salary:t.addMember,
+      memberSaveOpacity: s.memberForm.name.trim()?'1':'.55',
+      reportOpen:s.reportOpen, rp, toast:s.toast,
+      // handlers
+      toggleLang:()=>this.toggleLang(), stop:(e)=>this.stop(e), closeSheets:()=>this.closeSheets(),
+      prevMonth:()=>this.shiftMonth(-1), nextMonth:()=>this.shiftMonth(1), goToday:()=>this.goToday(),
+      openMonthPicker:()=>this.openMonthPicker(), prevYear:()=>this.shiftPickerYear(-1), nextYear:()=>this.shiftPickerYear(1),
+      openBook:()=>this.openBook(), setClient:(e)=>this.setClient(e), setPhone:(e)=>this.setPhone(e), setDate:(e)=>this.setDate(e),
+      incHours:()=>this.incHours(), decHours:()=>this.decHours(), saveSession:()=>this.saveSession(),
+      toggleDeposit:()=>this.toggleDeposit(), deleteSession:()=>this.deleteSession(),
+      openRent:()=>this.openRent(), setRenter:(e)=>this.setRenter(e), setRentDue:(e)=>this.setRentDue(e), setRentFee:(e)=>this.setRentFee(e),
+      saveRent:()=>this.saveRent(), returnGear:()=>this.returnGear(), removeGear:()=>this.removeGear(),
+      openAddGear:()=>this.openAddGear(), setGearName:(e)=>this.setGearName(e), setGearRate:(e)=>this.setGearRate(e),
+      incGearQty:()=>this.incGearQty(), decGearQty:()=>this.decGearQty(), saveGear:()=>this.saveGear(),
+      openAddEntry:()=>this.openAddEntry(), setEntryIn:()=>this.setEntryType('in'), setEntryOut:()=>this.setEntryType('out'),
+      setEntryLabel:(e)=>this.setEntryLabel(e), setEntryAmount:(e)=>this.setEntryAmount(e), setEntryDate:(e)=>this.setEntryDate(e), saveEntry:()=>this.saveEntry(),
+      openAddMember:()=>this.openMember(null), setMemberName:(e)=>this.setMemberName(e), setMemberRole:(e)=>this.setMemberRole(e),
+      setMemberSalary:(e)=>this.setMemberSalary(e), saveMember:()=>this.saveMember(),
+      incCount:()=>this.incCount(), decCount:()=>this.decCount(), saveReport:()=>this.saveReport()
+    };
+  }
+}
+</script>
+</body>
+</html>

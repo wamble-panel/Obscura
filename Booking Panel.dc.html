@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Plus Jakarta Sans','IBM Plex Sans Arabic',system-ui,-apple-system,sans-serif;background:#F4F4F6;color:#191A20;-webkit-font-smoothing:antialiased;}
+  a{color:#FF385C;text-decoration:none;} a:hover{color:#E11D48;}
+  input,button,select{font-family:inherit;}
+  input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer;}
+  ::-webkit-scrollbar{height:9px;width:9px;} ::-webkit-scrollbar-thumb{background:#D6D6DD;border-radius:9px;} ::-webkit-scrollbar-track{background:transparent;}
+  @keyframes bkSlideIn{from{transform:translateX(var(--bk-from,110%));opacity:.4;}to{transform:translateX(0);opacity:1;}}
+  @keyframes bkFade{from{opacity:0;}to{opacity:1;}}
+  @keyframes bkPop{from{transform:translateY(10px) scale(.98);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+</style>
+</helmet>
+
+<div dir="{{ dir }}" style="min-height:100vh; display:flex; flex-direction:{{ rootDir }};">
+
+  <sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ true }}">
+    <aside style="width:240px; flex-shrink:0; background:#FBFBFC; border-inline-end:1px solid #EEEEF1; padding:22px 14px 18px; display:flex; flex-direction:column; position:sticky; top:0; align-self:flex-start; height:100vh;">
+      <div style="display:flex; align-items:center; padding:2px 8px 22px;">
+        <span style="font-family:'Cinzel',serif; font-weight:700; font-size:20px; letter-spacing:2px; color:#191A20;">{{ t.brand }}</span>
+      </div>
+
+      <!-- Group 1 -->
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <button onClick="{{ goOverview }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:{{ nOverview.bg }}; color:{{ nOverview.fg }}; border:1px solid {{ nOverview.border }}; box-shadow:{{ nOverview.shadow }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5 7 5-16L17 12h4"/></svg>{{ t.overview }}
+        </button>
+        <button onClick="{{ showReservations }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:{{ navRes.bg }}; color:{{ navRes.fg }}; border:1px solid {{ navRes.border }}; box-shadow:{{ navRes.shadow }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M9 3v3h6V3M8.5 12l2 2 4-4"/></svg>{{ t.reservations }}
+        </button>
+        <button onClick="{{ showCalendar }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:{{ navCal.bg }}; color:{{ navCal.fg }}; border:1px solid {{ navCal.border }}; box-shadow:{{ navCal.shadow }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>{{ t.calendar }}
+        </button>
+        <button onClick="{{ goPricing }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:{{ nPricing.bg }}; color:{{ nPricing.fg }}; border:1px solid {{ nPricing.border }}; box-shadow:{{ nPricing.shadow }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9c-.6-1-1.6-1.4-2.7-1.4-1.5 0-2.6.8-2.6 2 0 1.4 1.4 1.8 2.8 2.1 1.4.3 2.8.7 2.8 2.1 0 1.2-1.1 2-2.6 2-1.2 0-2.2-.5-2.8-1.5M12 6v1.5M12 16.5V18"/></svg>{{ t.pricing }}
+        </button>
+        <button onClick="{{ showAnalytics }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:{{ navAna.bg }}; color:{{ navAna.fg }}; border:1px solid {{ navAna.border }}; box-shadow:{{ navAna.shadow }};">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>{{ t.statements }}
+        </button>
+      </div>
+
+      <div style="height:1px; background:#EEEEF1; margin:14px 8px;"></div>
+
+      <!-- Group 2 -->
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <button onClick="{{ goInert }}" style="display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13.5px; font-weight:600; text-align:start; background:transparent; color:#616069; border:1px solid transparent;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9.5z"/></svg>{{ t.listings }}
+        </button>
+      </div>
+    </aside>
+  </sc-if>
+
+  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+
+    <header style="position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:16px 22px; background:rgba(244,244,246,.82); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);">
+      <div style="display:flex; flex-direction:column; line-height:1.2; min-width:0;">
+        <h1 style="margin:0; font-size:21px; font-weight:800; letter-spacing:-.4px;">{{ viewTitle }}</h1>
+        <span style="font-size:12.5px; color:#8A8A94; font-weight:500; margin-top:2px;">{{ unitName }}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:9px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px; height:38px; padding:0 12px; border-radius:999px; background:#FFF; border:1px solid #ECECF0; font-size:12.5px; font-weight:700; color:#5A5A64;">
+          <span style="color:#0E9F6E;">EGP</span><span style="color:#C8C8D0;">·</span><span style="color:#2563EB;">USD</span>
+        </div>
+        <button onClick="{{ toggleLang }}" style="height:38px; padding:0 14px; border-radius:999px; background:#FFF; border:1px solid #ECECF0; cursor:pointer; font-size:13px; font-weight:700; color:#191A20; display:flex; align-items:center; gap:7px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c3 3.2 3 15.8 0 19M12 2.5c-3 3.2-3 15.8 0 19"/></svg>
+          {{ langLabel }}
+        </button>
+        <button onClick="{{ openAddManual }}" style="height:38px; padding:0 16px; border-radius:999px; background:#191A20; border:none; cursor:pointer; font-size:13px; font-weight:700; color:#FFF; display:flex; align-items:center; gap:7px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          {{ t.addBooking }}
+        </button>
+      </div>
+    </header>
+
+    <div style="padding:10px 22px 110px; flex:1;">
+
+      <!-- ================= CALENDAR ================= -->
+      <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#FFFFFF; border-radius:20px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 20px 50px -26px rgba(16,24,40,.18); padding:20px 20px 14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button onClick="{{ prevMonth }}" style="width:34px; height:34px; border-radius:10px; border:1px solid #ECECF0; background:#FFF; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#5A5A64;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="transform:{{ chevPrev }};"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.3px; min-width:150px; text-align:center;">{{ monthLabel }}</div>
+              <button onClick="{{ nextMonth }}" style="width:34px; height:34px; border-radius:10px; border:1px solid #ECECF0; background:#FFF; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#5A5A64;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="transform:{{ chevNext }};"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+              <button onClick="{{ goToday }}" style="height:34px; padding:0 14px; border-radius:10px; border:1px solid #ECECF0; background:#FFF; cursor:pointer; font-size:12.5px; font-weight:700; color:#5A5A64;">{{ t.today }}</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+              <sc-for list="{{ channels }}" as="ch" hint-placeholder-count="6">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#5A5A64;">
+                  <span style="width:11px; height:11px; border-radius:4px; background:{{ ch.dot }};"></span>{{ ch.label }}
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto; padding-bottom:4px;">
+            <div style="min-width:520px;">
+              <div dir="ltr" style="display:flex; margin-bottom:8px;">
+                <sc-for list="{{ weekdays }}" as="wd" hint-placeholder-count="7">
+                  <div style="flex:1; text-align:center; font-size:11.5px; font-weight:700; color:#9A9AA2; text-transform:uppercase; letter-spacing:.5px;">{{ wd }}</div>
+                </sc-for>
+              </div>
+
+              <div dir="ltr" onMouseLeave="{{ cancelSel }}" style="border:1px solid #EAEAEE; border-radius:14px; overflow:hidden; user-select:none;">
+                <sc-for list="{{ weeks }}" as="week" hint-placeholder-count="5">
+                  <div style="position:relative; display:flex; min-height:112px;">
+                    <sc-for list="{{ week.days }}" as="day" hint-placeholder-count="7">
+                      <div onMouseDown="{{ day.onDown }}" onMouseEnter="{{ day.onEnter }}" onMouseUp="{{ day.onUp }}" style="flex:1; border-inline-end:1px solid #F0F0F3; border-block-end:1px solid #F0F0F3; padding:7px 9px; cursor:pointer; background:{{ day.bg }};">
+                        <div style="display:flex; align-items:baseline; justify-content:space-between; opacity:{{ day.dim }};">
+                          <div style="display:flex; flex-direction:column; line-height:1.15;">
+                            <span style="font-size:12px; font-weight:700; color:#0E9F6E;">{{ day.egp }}</span>
+                            <span style="font-size:10.5px; font-weight:600; color:#B0B0B8;">{{ day.usd }}</span>
+                          </div>
+                          <span style="font-size:12.5px; font-weight:700; color:{{ day.numColor }}; background:{{ day.numBg }}; min-width:20px; height:20px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; padding:0 5px;">{{ day.dayNum }}</span>
+                        </div>
+                      </div>
+                    </sc-for>
+
+                    <sc-if value="{{ week.hasSel }}" hint-placeholder-val="{{ false }}">
+                      <div style="position:absolute; top:64px; height:40px; left:{{ week.sel.left }}; width:{{ week.sel.width }}; border-radius:9px; background:rgba(255,56,92,.09); border:1.5px dashed #FF385C; pointer-events:none;"></div>
+                    </sc-if>
+
+                    <sc-for list="{{ week.bands }}" as="band" hint-placeholder-count="0">
+                      <div onMouseDown="{{ band.stop }}" onClick="{{ band.onClick }}" style="position:absolute; top:64px; height:40px; left:{{ band.left }}; width:{{ band.width }}; background:{{ band.bg }}; border-radius:9px; border-inline-start:3px solid {{ band.color }}; cursor:pointer; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:0 9px;">
+                        <span style="font-size:12px; font-weight:800; color:{{ band.color }}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 2px rgba(255,255,255,.95);">{{ band.name }}</span>
+                        <span style="font-size:10.5px; font-weight:600; color:{{ band.metaColor }}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ band.meta }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; padding:12px 2px 4px; font-size:12px; color:#9A9AA2; font-weight:500;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 1.5" stroke-linecap="round"/></svg>
+            {{ t.dragHint }}
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= RESERVATIONS ================= -->
+      <sc-if value="{{ isReservations }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFFFFF; border-radius:20px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 20px 50px -26px rgba(16,24,40,.18); padding:8px 6px; overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <div style="min-width:640px;">
+              <div style="display:flex; padding:14px 18px; font-size:11px; font-weight:700; color:#9A9AA2; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #F0F0F3;">
+                <div style="flex:2.2;">{{ t.guest }}</div>
+                <div style="flex:1.6;">{{ t.channel }}</div>
+                <div style="flex:1.3;">{{ t.checkIn }}</div>
+                <div style="flex:1.3;">{{ t.checkOut }}</div>
+                <div style="flex:.8; text-align:center;">{{ t.nights }}</div>
+                <div style="flex:1.4; text-align:end;">{{ t.amount }}</div>
+                <div style="flex:1.2; text-align:end;">{{ t.status }}</div>
+              </div>
+              <sc-for list="{{ reservations }}" as="r" hint-placeholder-count="6">
+                <div onClick="{{ r.onClick }}" style="display:flex; align-items:center; padding:15px 18px; border-bottom:1px solid #F5F5F7; cursor:pointer; font-size:13.5px;" style-hover="background:#FAFAFB;">
+                  <div style="flex:2.2; font-weight:700; display:flex; align-items:center; gap:10px;">
+                    <span style="width:30px; height:30px; border-radius:50%; background:{{ r.avatarBg }}; color:{{ r.channelColor }}; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">{{ r.initials }}</span>
+                    {{ r.guest }}
+                  </div>
+                  <div style="flex:1.6; display:flex; align-items:center; gap:7px; color:#5A5A64; font-weight:600;">
+                    <span style="width:9px; height:9px; border-radius:3px; background:{{ r.dot }};"></span>{{ r.channelLabel }}
+                  </div>
+                  <div style="flex:1.3; color:#5A5A64;">{{ r.checkIn }}</div>
+                  <div style="flex:1.3; color:#5A5A64;">{{ r.checkOut }}</div>
+                  <div style="flex:.8; text-align:center; font-weight:700;">{{ r.nights }}</div>
+                  <div style="flex:1.4; text-align:end;"><div style="font-weight:800;">{{ r.egp }}</div><div style="font-size:11px; color:#B0B0B8; font-weight:600;">{{ r.usd }}</div></div>
+                  <div style="flex:1.2; text-align:end;"><span style="font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; background:{{ r.statusBg }}; color:{{ r.statusColor }};">{{ r.status }}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ================= ANALYTICS ================= -->
+      <sc-if value="{{ isAnalytics }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px;">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+              <div style="background:#FFFFFF; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 16px 40px -26px rgba(16,24,40,.16); padding:18px 20px;">
+                <div style="font-size:12px; font-weight:600; color:#9A9AA2;">{{ s.label }}</div>
+                <div style="font-size:27px; font-weight:800; letter-spacing:-.6px; margin-top:6px;">{{ s.value }}</div>
+                <div style="font-size:12px; font-weight:600; color:{{ s.subColor }}; margin-top:3px;">{{ s.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid; grid-template-columns:{{ anaCols }}; gap:16px;">
+            <div style="background:#FFFFFF; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 16px 40px -26px rgba(16,24,40,.16); padding:20px 22px;">
+              <div style="font-size:16px; font-weight:800; letter-spacing:-.2px;">{{ t.byChannel }}</div>
+              <div style="font-size:12.5px; color:#9A9AA2; font-weight:500; margin-top:2px; margin-bottom:20px;">{{ t.byChannelSub }}</div>
+              <div style="display:flex; flex-direction:column; gap:17px;">
+                <sc-for list="{{ chanStats }}" as="c" hint-placeholder-count="6">
+                  <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:7px;">
+                      <div style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700;">
+                        <span style="width:11px; height:11px; border-radius:4px; background:{{ c.dot }};"></span>{{ c.label }}
+                        <span style="font-size:11.5px; color:#B0B0B8; font-weight:600;">{{ c.count }}</span>
+                      </div>
+                      <div style="text-align:end;"><span style="font-size:13px; font-weight:800;">{{ c.egp }}</span> <span style="font-size:11px; color:#B0B0B8; font-weight:600;">{{ c.usd }}</span></div>
+                    </div>
+                    <div style="height:10px; border-radius:999px; background:#F2F2F5; overflow:hidden;">
+                      <div style="height:100%; width:{{ c.barW }}; border-radius:999px; background:{{ c.bar }}; transition:width .5s ease;"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="background:{{ topGrad }}; border-radius:18px; padding:22px; color:#fff; box-shadow:0 16px 40px -22px rgba(16,24,40,.4);">
+                <div style="font-size:12px; font-weight:600; opacity:.85;">{{ t.topChannel }}</div>
+                <div style="font-size:26px; font-weight:800; letter-spacing:-.4px; margin-top:8px;">{{ topName }}</div>
+                <div style="font-size:13px; font-weight:600; opacity:.9; margin-top:4px;">{{ topShare }}</div>
+                <div style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,.22); display:flex; justify-content:space-between;">
+                  <div><div style="font-size:11px; opacity:.8;">{{ t.revenue }}</div><div style="font-size:16px; font-weight:800;">{{ topEgp }}</div></div>
+                  <div style="text-align:end;"><div style="font-size:11px; opacity:.8;">{{ t.nightsBooked }}</div><div style="font-size:16px; font-weight:800;">{{ topNights }}</div></div>
+                </div>
+              </div>
+              <div style="background:#FFFFFF; border-radius:18px; box-shadow:0 1px 2px rgba(16,24,40,.04), 0 16px 40px -26px rgba(16,24,40,.16); padding:20px 22px;">
+                <div style="font-size:15px; font-weight:800;">{{ t.mix }}</div>
+                <div style="display:flex; height:14px; border-radius:999px; overflow:hidden; margin:16px 0 14px; background:#F2F2F5;">
+                  <sc-for list="{{ chanStats }}" as="c" hint-placeholder-count="6">
+                    <div style="width:{{ c.barW }}; background:{{ c.bar }};"></div>
+                  </sc-for>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:9px;">
+                  <sc-for list="{{ chanStats }}" as="c" hint-placeholder-count="6">
+                    <div style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px;">
+                      <span style="display:flex; align-items:center; gap:7px; color:#5A5A64; font-weight:600;"><span style="width:9px; height:9px; border-radius:3px; background:{{ c.dot }};"></span>{{ c.label }}</span>
+                      <span style="font-weight:700;">{{ c.pct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM NAV (mobile) ================= -->
+  <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+    <nav style="position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; background:rgba(255,255,255,.94); backdrop-filter:blur(12px); border-top:1px solid #ECECF0; padding:8px 6px calc(8px + env(safe-area-inset-bottom));">
+      <button onClick="{{ showCalendar }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; border:none; background:none; cursor:pointer; font-size:11px; font-weight:700; color:{{ navCal.fg }};">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>{{ t.calendar }}
+      </button>
+      <button onClick="{{ showReservations }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; border:none; background:none; cursor:pointer; font-size:11px; font-weight:700; color:{{ navRes.fg }};">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>{{ t.reservations }}
+      </button>
+      <button onClick="{{ showAnalytics }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; border:none; background:none; cursor:pointer; font-size:11px; font-weight:700; color:{{ navAna.fg }};">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>{{ t.analytics }}
+      </button>
+    </nav>
+  </sc-if>
+
+  <!-- ================= DETAIL DRAWER ================= -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:fixed; inset:0; z-index:60; background:rgba(16,20,30,.28); animation:bkFade .2s ease;">
+      <div onClick="{{ stopClick }}" style="position:absolute; top:0; bottom:0; inset-inline-end:0; width:min(420px,100%); background:#FFF; box-shadow:-20px 0 60px -20px rgba(16,24,40,.35); display:flex; flex-direction:column; --bk-from:110%; animation:bkSlideIn .28s cubic-bezier(.22,1,.36,1);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 22px 14px;">
+          <h2 style="margin:0; font-size:18px; font-weight:800; letter-spacing:-.3px;">{{ t.reservationDetails }}</h2>
+          <button onClick="{{ closeDrawer }}" style="width:32px; height:32px; border-radius:9px; border:1px solid #ECECF0; background:#FFF; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#8A8A94;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding:6px 22px 22px;">
+          <div style="display:flex; align-items:center; gap:12px; padding:14px 0 18px;">
+            <span style="width:46px; height:46px; border-radius:50%; background:{{ dr.avatarBg }}; color:{{ dr.color }}; display:inline-flex; align-items:center; justify-content:center; font-size:16px; font-weight:800;">{{ dr.initials }}</span>
+            <div>
+              <div style="font-size:16px; font-weight:800;">{{ dr.guest }}</div>
+              <div style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:#5A5A64; font-weight:600; margin-top:2px;"><span style="width:9px; height:9px; border-radius:3px; background:{{ dr.dot }};"></span>{{ dr.channelLabel }}</div>
+            </div>
+            <div style="margin-inline-start:auto; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; background:{{ dr.statusBg }}; color:{{ dr.statusColor }};">{{ dr.status }}</div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px;">
+            <div style="background:#F6F6F8; border-radius:13px; padding:13px 15px;"><div style="font-size:11.5px; color:#9A9AA2; font-weight:600;">{{ t.checkIn }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ dr.checkIn }}</div></div>
+            <div style="background:#F6F6F8; border-radius:13px; padding:13px 15px;"><div style="font-size:11.5px; color:#9A9AA2; font-weight:600;">{{ t.checkOut }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ dr.checkOut }}</div></div>
+            <div style="background:#F6F6F8; border-radius:13px; padding:13px 15px;"><div style="font-size:11.5px; color:#9A9AA2; font-weight:600;">{{ t.nights }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ dr.nights }}</div></div>
+            <div style="background:#F6F6F8; border-radius:13px; padding:13px 15px;"><div style="font-size:11.5px; color:#9A9AA2; font-weight:600;">{{ t.guests }}</div><div style="font-size:14px; font-weight:800; margin-top:3px;">{{ dr.guests }}</div></div>
+          </div>
+
+          <div style="border:1px solid #F0F0F3; border-radius:14px; padding:4px 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid #F5F5F7;"><span style="font-size:13px; color:#5A5A64; font-weight:600;">{{ t.nightlyRate }}</span><span style="text-align:end;"><b style="font-size:13.5px;">{{ dr.rateEgp }}</b> <span style="font-size:11px; color:#B0B0B8;">{{ dr.rateUsd }}</span></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid #F5F5F7;"><span style="font-size:13px; color:#5A5A64; font-weight:600;">{{ dr.subLabel }}</span><span style="text-align:end;"><b style="font-size:13.5px;">{{ dr.subEgp }}</b> <span style="font-size:11px; color:#B0B0B8;">{{ dr.subUsd }}</span></span></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:13px 0;"><span style="font-size:13px; color:#5A5A64; font-weight:600;">{{ dr.feeLabel }}</span><span style="text-align:end; color:#E11D48;"><b style="font-size:13.5px;">{{ dr.feeEgp }}</b> <span style="font-size:11px;">{{ dr.feeUsd }}</span></span></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:16px; border-radius:14px; background:#191A20; color:#FFF;">
+            <span style="font-size:13.5px; font-weight:700;">{{ t.netPayout }}</span>
+            <span style="text-align:end;"><b style="font-size:17px;">{{ dr.payoutEgp }}</b> <span style="font-size:12px; opacity:.7;">{{ dr.payoutUsd }}</span></span>
+          </div>
+
+          <button onClick="{{ deleteBooking }}" style="width:100%; margin-top:14px; height:44px; border-radius:12px; border:1px solid #F3D0D8; background:#FFF5F7; color:#E11D48; font-size:13.5px; font-weight:700; cursor:pointer;">{{ t.removeBooking }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ================= ADD BOOKING MODAL ================= -->
+  <sc-if value="{{ addOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAdd }}" style="position:fixed; inset:0; z-index:70; background:rgba(16,20,30,.32); display:flex; align-items:center; justify-content:center; padding:16px; animation:bkFade .18s ease;">
+      <div onClick="{{ stopClick }}" style="width:min(460px,100%); max-height:92vh; overflow-y:auto; background:#FFF; border-radius:22px; box-shadow:0 30px 80px -20px rgba(16,24,40,.4); padding:24px; animation:bkPop .24s cubic-bezier(.22,1,.36,1);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+          <h2 style="margin:0; font-size:19px; font-weight:800; letter-spacing:-.3px;">{{ t.newBooking }}</h2>
+          <button onClick="{{ closeAdd }}" style="width:32px; height:32px; border-radius:9px; border:1px solid #ECECF0; background:#FFF; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#8A8A94;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:7px;">{{ t.guestName }}</label>
+        <input value="{{ form.guest }}" onInput="{{ setGuest }}" placeholder="{{ t.guestPh }}" style="width:100%; height:44px; border-radius:12px; border:1px solid #E4E4EA; padding:0 14px; font-size:14px; margin-bottom:18px; outline:none;" style-focus="border-color:#191A20;">
+
+        <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:9px;">{{ t.channel }}</label>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+          <sc-for list="{{ formChannels }}" as="c" hint-placeholder-count="6">
+            <button onClick="{{ c.onClick }}" style="display:flex; align-items:center; gap:7px; height:38px; padding:0 13px; border-radius:11px; border:none; cursor:pointer; font-size:13px; font-weight:700; background:{{ c.chipBg }}; color:{{ c.chipColor }}; box-shadow:{{ c.ring }};">
+              <span style="width:10px; height:10px; border-radius:3px; background:{{ c.dot }};"></span>{{ c.label }}
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-bottom:18px;">
+          <div style="flex:1;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:7px;">{{ t.checkIn }}</label>
+            <input type="date" value="{{ form.checkIn }}" onInput="{{ setCheckIn }}" style="width:100%; height:44px; border-radius:12px; border:1px solid #E4E4EA; padding:0 12px; font-size:13.5px; outline:none;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:7px;">{{ t.checkOut }}</label>
+            <input type="date" value="{{ form.checkOut }}" onInput="{{ setCheckOut }}" style="width:100%; height:44px; border-radius:12px; border:1px solid #E4E4EA; padding:0 12px; font-size:13.5px; outline:none;">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-bottom:20px;">
+          <div style="flex:1;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:7px;">{{ t.guests }}</label>
+            <div style="display:flex; align-items:center; height:44px; border-radius:12px; border:1px solid #E4E4EA; padding:0 6px; justify-content:space-between;">
+              <button onClick="{{ decGuests }}" style="width:32px; height:32px; border-radius:8px; border:none; background:#F2F2F5; cursor:pointer; font-size:18px; color:#5A5A64; line-height:1;">−</button>
+              <span style="font-size:15px; font-weight:800;">{{ form.guests }}</span>
+              <button onClick="{{ incGuests }}" style="width:32px; height:32px; border-radius:8px; border:none; background:#F2F2F5; cursor:pointer; font-size:18px; color:#5A5A64; line-height:1;">+</button>
+            </div>
+          </div>
+          <div style="flex:1.4;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#5A5A64; margin-bottom:7px;">{{ t.rateLabel }}</label>
+            <div style="display:flex; align-items:center; height:44px; border-radius:12px; border:1px solid #E4E4EA; padding:0 12px; gap:6px;">
+              <span style="font-size:13px; font-weight:700; color:#0E9F6E;">E£</span>
+              <input type="number" value="{{ form.rate }}" onInput="{{ setRate }}" style="flex:1; border:none; outline:none; font-size:14px; font-weight:700; width:100%; background:transparent;">
+              <span style="font-size:12px; color:#B0B0B8; font-weight:600;">{{ form.rateUsd }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:14px; background:#F6F6F8; margin-bottom:20px;">
+          <span style="font-size:13px; color:#5A5A64; font-weight:600;">{{ form.nightsLabel }}</span>
+          <span style="text-align:end;"><b style="font-size:16px;">{{ form.totalEgp }}</b> <span style="font-size:12px; color:#B0B0B8;">{{ form.totalUsd }}</span></span>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button onClick="{{ closeAdd }}" style="flex:1; height:46px; border-radius:13px; border:1px solid #E4E4EA; background:#FFF; cursor:pointer; font-size:14px; font-weight:700; color:#5A5A64;">{{ t.cancel }}</button>
+          <button onClick="{{ saveBooking }}" style="flex:1.6; height:46px; border-radius:13px; border:none; background:{{ saveBg }}; cursor:{{ saveCursor }}; font-size:14px; font-weight:700; color:#FFF; opacity:{{ saveOpacity }};">{{ t.save }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:760},&quot;defaultLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en&quot;,&quot;ar&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;'en'|'ar'&quot;,&quot;section&quot;:&quot;Localization&quot;},&quot;usdRate&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:48,&quot;min&quot;:20,&quot;max&quot;:90,&quot;unit&quot;:&quot;EGP/USD&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Localization&quot;},&quot;unitName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marassi Chalet · B-12&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Unit&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const seed = [
+      {id:1, channel:'airbnb',   guest:'Sarah Mitchell', checkIn:'2026-07-04', checkOut:'2026-07-07', guests:2, rate:3200},
+      {id:2, channel:'booking',  guest:'Ahmed Hassan',   checkIn:'2026-07-09', checkOut:'2026-07-13', guests:3, rate:2950},
+      {id:3, channel:'masyaf',   guest:'Layla Ibrahim',  checkIn:'2026-07-15', checkOut:'2026-07-17', guests:2, rate:3600},
+      {id:4, channel:'facebook', guest:'Mostafa Ali',    checkIn:'2026-07-19', checkOut:'2026-07-22', guests:4, rate:2800},
+      {id:5, channel:'rentelly', guest:'Nour El-Din',    checkIn:'2026-07-24', checkOut:'2026-07-29', guests:2, rate:3100},
+      {id:6, channel:'other',    guest:'James Carter',   checkIn:'2026-07-30', checkOut:'2026-08-01', guests:2, rate:4200}
+    ];
+    this.state = {
+      lang: (this.props.defaultLang==='ar') ? 'ar' : 'en',
+      view: 'calendar',
+      year: 2026, month: 6,
+      bookings: seed,
+      drawerId: null,
+      selecting: false, selStart: null, selEnd: null,
+      addOpen: false,
+      form: {guest:'', channel:'airbnb', checkIn:'', checkOut:'', guests:2, rate:2800},
+      isMobile: false
+    };
+    this.today = new Date(2026,6,7,12);
+  }
+  componentDidMount(){
+    this._mq = window.matchMedia('(max-width: 860px)');
+    const upd = ()=> this.setState({isMobile: this._mq.matches});
+    upd();
+    this._mq.addEventListener ? this._mq.addEventListener('change',upd) : this._mq.addListener(upd);
+    this._up = ()=>{ if(this.state.selecting) this.endSel(); };
+    document.addEventListener('mouseup', this._up);
+  }
+  componentWillUnmount(){ document.removeEventListener('mouseup', this._up); }
+
+  RATE(){ return this.props.usdRate || 48; }
+  comma(n){ return Math.round(n).toLocaleString('en-US'); }
+  egp(n){ return 'E£'+this.comma(n); }
+  usd(n){ return '$'+this.comma(n/this.RATE()); }
+  pad(n){ return (n<10?'0':'')+n; }
+  key(d){ return d.getFullYear()+'-'+this.pad(d.getMonth()+1)+'-'+this.pad(d.getDate()); }
+  parse(k){ const p=k.split('-'); return new Date(+p[0], +p[1]-1, +p[2], 12); }
+  addDays(k,n){ const d=this.parse(k); d.setDate(d.getDate()+n); return this.key(d); }
+  nightsBetween(a,b){ return Math.round((this.parse(b)-this.parse(a))/86400000); }
+  ch(key){ return this.CH.find(c=>c.key===key) || this.CH[5]; }
+
+  get CH(){ return [
+    {key:'airbnb',   label:'Airbnb',      color:'#FF385C', rgb:'255,56,92',  dot:'#FF385C', fee:.15},
+    {key:'booking',  label:'Booking.com', color:'#0A4EAF', rgb:'10,78,175',  dot:'#0A4EAF', fee:.18},
+    {key:'masyaf',   label:'Masyaf',      color:'#7C3AED', rgb:'124,58,237', dot:'linear-gradient(135deg,#7C3AED,#06B6D4)', fee:.12},
+    {key:'rentelly', label:'Rentelly',    color:'#F97316', rgb:'249,115,22', dot:'#F97316', fee:.10},
+    {key:'facebook', label:'Facebook',    color:'#1877F2', rgb:'24,119,242', dot:'#1877F2', fee:.03},
+    {key:'other',    label:'Other',       color:'#64748B', rgb:'100,116,139',dot:'#64748B', fee:0}
+  ]; }
+
+  get DICT(){ return {
+    en:{ dir:'ltr', brand:'Alanany', brandSub:'Property Manager', managing:'Managing',
+      unitsNote:'1 unit · switch soon', overview:'Overview', calendar:'Calendar', reservations:'Reservations', analytics:'Analytics',
+      pricing:'Pricing', statements:'Statements', listings:'Listings', tasks:'Tasks', myTrips:'My Trips', users:'Users', ownerExchange:'Owner Exchange', resources:'Resources',
+      addBooking:'Add booking', today:'Today', dragHint:'Drag across dates to add a booking · click a booking to see details',
+      guest:'Guest', channel:'Channel', checkIn:'Check-in', checkOut:'Check-out', nights:'Nights', amount:'Amount', status:'Status',
+      reservationDetails:'Reservation details', guests:'Guests', nightlyRate:'Nightly rate', netPayout:'Net payout', removeBooking:'Remove booking',
+      newBooking:'New booking', guestName:'Guest name', guestPh:'Enter guest name', save:'Save booking', cancel:'Cancel', rateLabel:'Nightly rate',
+      byChannel:'Revenue by channel', byChannelSub:'How each app is performing this period', topChannel:'Top channel', revenue:'Revenue',
+      nightsBooked:'Nights booked', mix:'Booking mix', totalRevenue:'Total revenue', occupancy:'Occupancy',
+      months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+      weekdays:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], upcoming:'Upcoming', complete:'Complete', inhouse:'In-house' },
+    ar:{ dir:'rtl', brand:'Alanany', brandSub:'إدارة العقارات', managing:'تدير الآن',
+      unitsNote:'وحدة واحدة · المزيد قريبًا', overview:'نظرة عامة', calendar:'التقويم', reservations:'الحجوزات', analytics:'التحليلات',
+      pricing:'التسعير', statements:'الكشوفات', listings:'الوحدات', tasks:'المهام', myTrips:'رحلاتي', users:'المستخدمون', ownerExchange:'تبادل المُلّاك', resources:'الموارد',
+      addBooking:'إضافة حجز', today:'اليوم', dragHint:'اسحب فوق التواريخ لإضافة حجز · اضغط على الحجز لعرض التفاصيل',
+      guest:'الضيف', channel:'المنصة', checkIn:'الوصول', checkOut:'المغادرة', nights:'ليالٍ', amount:'المبلغ', status:'الحالة',
+      reservationDetails:'تفاصيل الحجز', guests:'الضيوف', nightlyRate:'سعر الليلة', netPayout:'صافي العائد', removeBooking:'حذف الحجز',
+      newBooking:'حجز جديد', guestName:'اسم الضيف', guestPh:'أدخل اسم الضيف', save:'حفظ الحجز', cancel:'إلغاء', rateLabel:'سعر الليلة',
+      byChannel:'الإيرادات حسب المنصة', byChannelSub:'أداء كل تطبيق خلال هذه الفترة', topChannel:'أفضل منصة', revenue:'الإيرادات',
+      nightsBooked:'الليالي المحجوزة', mix:'توزيع الحجوزات', totalRevenue:'إجمالي الإيرادات', occupancy:'نسبة الإشغال',
+      months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'],
+      weekdays:['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'], upcoming:'قادم', complete:'مكتمل', inhouse:'حالي' }
+  }; }
+
+  // ---- actions ----
+  toggleLang(){ this.setState(s=>({lang: s.lang==='en'?'ar':'en'})); }
+  showCalendar(){ this.setState({view:'calendar'}); }
+  showReservations(){ this.setState({view:'reservations'}); }
+  showAnalytics(){ this.setState({view:'analytics'}); }
+  prevMonth(){ this.setState(s=>{ let m=s.month-1,y=s.year; if(m<0){m=11;y--;} return {month:m,year:y}; }); }
+  nextMonth(){ this.setState(s=>{ let m=s.month+1,y=s.year; if(m>11){m=0;y++;} return {month:m,year:y}; }); }
+  goToday(){ this.setState({year:this.today.getFullYear(), month:this.today.getMonth()}); }
+
+  selDown(k){ this.setState({selecting:true, selStart:k, selEnd:k}); }
+  selEnter(k){ if(this.state.selecting) this.setState({selEnd:k}); }
+  cancelSel(){ /* keep for release outside */ }
+  endSel(){
+    const {selStart, selEnd} = this.state;
+    if(!selStart){ this.setState({selecting:false}); return; }
+    const a = selStart<=selEnd?selStart:selEnd;
+    const b = selStart<=selEnd?selEnd:selStart;
+    const checkIn=a, checkOut=this.addDays(b,1);
+    const dayRate = this.priceFor(this.parse(a));
+    this.setState(s=>({selecting:false, selStart:null, selEnd:null, addOpen:true,
+      form:{...s.form, checkIn, checkOut, rate:dayRate, guest:'', channel:'airbnb'}}));
+  }
+
+  priceFor(d){ const wd=d.getDay(); return (wd===5||wd===6)?3400:2600; }
+
+  openDrawer(id){ this.setState({drawerId:id}); }
+  closeDrawer(){ this.setState({drawerId:null}); }
+  deleteBooking(){ this.setState(s=>({bookings:s.bookings.filter(b=>b.id!==s.drawerId), drawerId:null})); }
+  stopClick(e){ e.stopPropagation(); }
+
+  openAddManual(){ const ci=this.key(this.today); this.setState(s=>({addOpen:true, form:{...s.form, checkIn:ci, checkOut:this.addDays(ci,1), guest:'', channel:'airbnb', rate:2800, guests:2}})); }
+  closeAdd(){ this.setState({addOpen:false}); }
+  setGuest(e){ const v=e.target.value; this.setState(s=>({form:{...s.form, guest:v}})); }
+  setRate(e){ const v=+e.target.value||0; this.setState(s=>({form:{...s.form, rate:v}})); }
+  setCheckIn(e){ const v=e.target.value; this.setState(s=>({form:{...s.form, checkIn:v}})); }
+  setCheckOut(e){ const v=e.target.value; this.setState(s=>({form:{...s.form, checkOut:v}})); }
+  incGuests(){ this.setState(s=>({form:{...s.form, guests:Math.min(16,s.form.guests+1)}})); }
+  decGuests(){ this.setState(s=>({form:{...s.form, guests:Math.max(1,s.form.guests-1)}})); }
+  setChannel(k){ this.setState(s=>({form:{...s.form, channel:k}})); }
+  saveBooking(){
+    const f=this.state.form;
+    if(!f.checkIn||!f.checkOut) return;
+    const n=this.nightsBetween(f.checkIn,f.checkOut);
+    if(n<1) return;
+    const bk={id:Date.now(), channel:f.channel, guest:f.guest.trim()||'Guest', checkIn:f.checkIn, checkOut:f.checkOut, guests:f.guests, rate:f.rate};
+    this.setState(s=>({bookings:[...s.bookings, bk], addOpen:false}));
+  }
+
+  initials(name){ const p=name.trim().split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+  fmtDate(k, t){ const d=this.parse(k); return t.weekdays[d.getDay()]+', '+d.getDate()+' '+t.months[d.getMonth()].slice(0,3); }
+  statusOf(bk, t){
+    const ci=this.parse(bk.checkIn), co=this.parse(bk.checkOut);
+    if(co<this.today) return {label:t.complete, bg:'#F1F1F4', color:'#6B7280'};
+    if(ci>this.today) return {label:t.upcoming, bg:'#E6F6EF', color:'#0E9F6E'};
+    return {label:t.inhouse, bg:'#E7F0FE', color:'#2563EB'};
+  }
+  crossBg(rgb){
+    const a='rgba('+rgb+',.42)';
+    return 'linear-gradient(to top right, transparent calc(50% - 1px), '+a+' calc(50% - 1px), '+a+' calc(50% + 1px), transparent calc(50% + 1px)), '
+         + 'linear-gradient(to bottom right, transparent calc(50% - 1px), '+a+' calc(50% - 1px), '+a+' calc(50% + 1px), transparent calc(50% + 1px)), '
+         + 'rgba('+rgb+',.13)';
+  }
+
+  renderVals(){
+    const s=this.state;
+    const t=this.DICT[s.lang];
+    const nav=(v)=> s.view===v
+      ? {bg:'#FFFFFF', fg:'#191A20', border:'#EBEBEF', shadow:'0 1px 2px rgba(16,24,40,.05), 0 6px 16px -10px rgba(16,24,40,.28)'}
+      : {bg:'transparent', fg:'#616069', border:'transparent', shadow:'none'};
+    const inert={bg:'transparent', fg:'#616069', border:'transparent', shadow:'none'};
+
+    // ---- calendar weeks ----
+    const first=new Date(s.year,s.month,1,12);
+    const offset=first.getDay();
+    const gridStart=new Date(s.year,s.month,1-offset,12);
+    const numWeeks=Math.ceil((offset+new Date(s.year,s.month+1,0).getDate())/7);
+    const selA = s.selecting && s.selStart ? (s.selStart<=s.selEnd?s.selStart:s.selEnd):null;
+    const selB = s.selecting && s.selStart ? (s.selStart<=s.selEnd?s.selEnd:s.selStart):null;
+
+    const weeks=[];
+    for(let w=0; w<numWeeks; w++){
+      const wkStart=new Date(gridStart); wkStart.setDate(gridStart.getDate()+w*7);
+      const days=[];
+      for(let i=0;i<7;i++){
+        const d=new Date(wkStart); d.setDate(wkStart.getDate()+i);
+        const inMonth=d.getMonth()===s.month;
+        const isToday=this.key(d)===this.key(this.today);
+        const price=this.priceFor(d);
+        const dk=this.key(d);
+        days.push(inMonth ? {
+          dayNum:d.getDate(), dateKey:dk, dim:'1', empty:false,
+          egp:this.egp(price), usd:this.usd(price),
+          bg: isToday ? 'rgba(255,56,92,.04)' : '#FFFFFF',
+          numColor: isToday?'#FFFFFF':'#191A20',
+          numBg: isToday?'#FF385C':'transparent',
+          onDown:()=>this.selDown(dk), onEnter:()=>this.selEnter(dk), onUp:()=>this.endSel()
+        } : {
+          dayNum:'', dateKey:dk, dim:'1', empty:true,
+          egp:'', usd:'', bg:'#FBFBFC', numColor:'transparent', numBg:'transparent',
+          onDown:()=>{}, onEnter:()=>{}, onUp:()=>{}
+        });
+      }
+      const wkEnd=new Date(wkStart); wkEnd.setDate(wkStart.getDate()+6);
+      // bands
+      const bands=[];
+      s.bookings.forEach(bk=>{
+        const inD=this.parse(bk.checkIn);
+        const lastNight=this.parse(bk.checkOut); lastNight.setDate(lastNight.getDate()-1);
+        const start=inD>wkStart?inD:wkStart;
+        const end=lastNight<wkEnd?lastNight:wkEnd;
+        if(start<=end){
+          const sc=Math.round((start-wkStart)/86400000);
+          const span=Math.round((end-start)/86400000)+1;
+          const c=this.ch(bk.channel);
+          const nn=this.nightsBetween(bk.checkIn,bk.checkOut);
+          bands.push({
+            left:'calc('+(sc/7*100)+'% + 3px)', width:'calc('+(span/7*100)+'% - 6px)',
+            bg:this.crossBg(c.rgb), color:c.color, metaColor:'rgba('+c.rgb+',.85)',
+            name:bk.guest, meta:nn+' '+t.nights+' · '+bk.guests+' '+t.guests.toLowerCase(),
+            onClick:()=>this.openDrawer(bk.id), stop:(e)=>e.stopPropagation()
+          });
+        }
+      });
+      // selection
+      let sel=null, hasSel=false;
+      if(selA){
+        const sa=this.parse(selA), sb=this.parse(selB);
+        const start=sa>wkStart?sa:wkStart, end=sb<wkEnd?sb:wkEnd;
+        if(start<=end){ const sc=Math.round((start-wkStart)/86400000); const span=Math.round((end-start)/86400000)+1;
+          sel={left:'calc('+(sc/7*100)+'% + 3px)', width:'calc('+(span/7*100)+'% - 6px)'}; hasSel=true; }
+      }
+      weeks.push({days, bands, hasSel, sel});
+    }
+
+    // ---- reservations ----
+    const reservations=[...s.bookings].sort((a,b)=>a.checkIn<b.checkIn?-1:1).map(bk=>{
+      const c=this.ch(bk.channel); const n=this.nightsBetween(bk.checkIn,bk.checkOut); const total=n*bk.rate;
+      const st=this.statusOf(bk,t);
+      return {guest:bk.guest, initials:this.initials(bk.guest), channelLabel:c.label, dot:c.dot, channelColor:c.color,
+        avatarBg:'rgba('+c.rgb+',.12)', checkIn:this.fmtDate(bk.checkIn,t), checkOut:this.fmtDate(bk.checkOut,t),
+        nights:n, egp:this.egp(total), usd:this.usd(total), status:st.label, statusBg:st.bg, statusColor:st.color,
+        onClick:()=>this.openDrawer(bk.id)};
+    });
+
+    // ---- analytics ----
+    let totalRev=0, totalNights=0;
+    const perCh={};
+    s.bookings.forEach(bk=>{ const n=this.nightsBetween(bk.checkIn,bk.checkOut); const rev=n*bk.rate; totalRev+=rev; totalNights+=n;
+      if(!perCh[bk.channel]) perCh[bk.channel]={rev:0,nights:0,count:0}; perCh[bk.channel].rev+=rev; perCh[bk.channel].nights+=n; perCh[bk.channel].count++; });
+    const maxRev=Math.max(1,...Object.values(perCh).map(v=>v.rev));
+    const chanStats=this.CH.filter(c=>perCh[c.key]).map(c=>{ const v=perCh[c.key];
+      return {label:c.label, dot:c.dot, bar:c.dot, count:v.count+' '+(s.lang==='ar'?'حجوزات':'bookings'),
+        egp:this.egp(v.rev), usd:this.usd(v.rev), barW:(v.rev/maxRev*100)+'%',
+        pct: totalRev? Math.round(v.rev/totalRev*100)+'%':'0%'};
+    }).sort((a,b)=>parseFloat(b.barW)-parseFloat(a.barW));
+    const topKey=Object.keys(perCh).sort((a,b)=>perCh[b].rev-perCh[a].rev)[0];
+    const topC=topKey?this.ch(topKey):this.CH[0];
+    const topV=topKey?perCh[topKey]:{rev:0,nights:0};
+    const daysInMonth=new Date(s.year,s.month+1,0).getDate();
+    let monthNights=0; s.bookings.forEach(bk=>{ let d=this.parse(bk.checkIn); const co=this.parse(bk.checkOut);
+      while(d<co){ if(d.getMonth()===s.month&&d.getFullYear()===s.year) monthNights++; d.setDate(d.getDate()+1);} });
+    const occ=Math.round(monthNights/daysInMonth*100);
+    const stats=[
+      {label:t.totalRevenue, value:this.egp(totalRev), sub:this.usd(totalRev), subColor:'#9A9AA2'},
+      {label:t.nightsBooked, value:''+totalNights, sub:s.bookings.length+' '+t.reservations.toLowerCase(), subColor:'#9A9AA2'},
+      {label:t.occupancy, value:occ+'%', sub:monthNights+'/'+daysInMonth+' '+t.nights.toLowerCase(), subColor:occ>50?'#0E9F6E':'#9A9AA2'},
+      {label:t.topChannel, value:topC.label, sub:topV.count?perCh[topKey].count+' '+(s.lang==='ar'?'حجوزات':'bookings'):'—', subColor:'#9A9AA2'}
+    ];
+    const topGrad = topKey==='masyaf' ? 'linear-gradient(135deg,#7C3AED,#06B6D4)' : ('linear-gradient(135deg,'+topC.color+', rgba('+topC.rgb+',.72))');
+
+    // ---- drawer ----
+    let dr=null; const dbk=s.bookings.find(b=>b.id===s.drawerId);
+    if(dbk){ const c=this.ch(dbk.channel); const n=this.nightsBetween(dbk.checkIn,dbk.checkOut); const sub=n*dbk.rate; const fee=Math.round(sub*c.fee); const st=this.statusOf(dbk,t);
+      dr={guest:dbk.guest, initials:this.initials(dbk.guest), channelLabel:c.label, dot:c.dot, color:c.color, avatarBg:'rgba('+c.rgb+',.12)',
+        status:st.label, statusBg:st.bg, statusColor:st.color, checkIn:this.fmtDate(dbk.checkIn,t), checkOut:this.fmtDate(dbk.checkOut,t),
+        nights:n, guests:dbk.guests, rateEgp:this.egp(dbk.rate), rateUsd:this.usd(dbk.rate),
+        subLabel:n+' × '+t.nights.toLowerCase(), subEgp:this.egp(sub), subUsd:this.usd(sub),
+        feeLabel:c.label+' '+(s.lang==='ar'?'عمولة':'fee')+' ('+Math.round(c.fee*100)+'%)', feeEgp:'−'+this.egp(fee), feeUsd:this.usd(fee),
+        payoutEgp:this.egp(sub-fee), payoutUsd:this.usd(sub-fee)}; }
+
+    // ---- add form ----
+    const f=s.form; const fn=(f.checkIn&&f.checkOut)?this.nightsBetween(f.checkIn,f.checkOut):0;
+    const ftotal=fn>0?fn*f.rate:0; const valid=fn>0;
+    const formChannels=this.CH.map(c=>{ const active=f.channel===c.key;
+      return {label:c.label, dot:c.dot, onClick:()=>this.setChannel(c.key),
+        chipBg: active?'rgba('+c.rgb+',.12)':'#F5F5F7', chipColor: active?c.color:'#5A5A64',
+        ring: active?('inset 0 0 0 1.5px '+c.color):'none'};
+    });
+    const formOut={...f, rateUsd:this.usd(f.rate),
+      nightsLabel: fn>0?(fn+' '+t.nights.toLowerCase()+' × '+this.egp(f.rate)):(s.lang==='ar'?'اختر التواريخ':'Select dates'),
+      totalEgp: this.egp(ftotal), totalUsd:this.usd(ftotal)};
+
+    return {
+      dir:t.dir, lang:s.lang, t, unitName: this.props.unitName || (s.lang==='ar'?'شاليه مراسي · B-12':'Marassi Chalet · B-12'),
+      langLabel: s.lang==='en'?'العربية':'EN',
+      rootDir: s.isMobile?'column':'row', showSidebar: !s.isMobile, isMobile:s.isMobile,
+      navCal:nav('calendar'), navRes:nav('reservations'), navAna:nav('analytics'),
+      nOverview:inert, nPricing:inert,
+      goOverview:()=>{}, goPricing:()=>{}, goInert:()=>{},
+      isCalendar:s.view==='calendar', isReservations:s.view==='reservations', isAnalytics:s.view==='analytics',
+      viewTitle: s.view==='calendar'?t.calendar:(s.view==='reservations'?t.reservations:t.analytics),
+      chevPrev: t.dir==='rtl'?'scaleX(-1)':'none', chevNext: t.dir==='rtl'?'scaleX(-1)':'none',
+      channels:this.CH, weekdays:t.weekdays, monthLabel:t.months[s.month]+' '+s.year, weeks,
+      reservations,
+      stats, chanStats, anaCols: s.isMobile?'1fr':'1.5fr 1fr',
+      topName:topC.label, topShare: topV.rev&&totalRev? Math.round(topV.rev/totalRev*100)+'% '+(s.lang==='ar'?'من الإيرادات':'of revenue'):'—',
+      topEgp:this.egp(topV.rev), topNights:topV.nights, topGrad,
+      drawerOpen: !!dr, dr: dr||{},
+      addOpen:s.addOpen, form:formOut, formChannels,
+      saveBg: valid?'#191A20':'#C8C8D0', saveCursor: valid?'pointer':'default', saveOpacity: valid?'1':'.7',
+      // handlers
+      toggleLang:()=>this.toggleLang(), showCalendar:()=>this.showCalendar(), showReservations:()=>this.showReservations(), showAnalytics:()=>this.showAnalytics(),
+      prevMonth:()=>this.prevMonth(), nextMonth:()=>this.nextMonth(), goToday:()=>this.goToday(),
+      cancelSel:()=>this.cancelSel(), closeDrawer:()=>this.closeDrawer(), stopClick:(e)=>this.stopClick(e), deleteBooking:()=>this.deleteBooking(),
+      openAddManual:()=>this.openAddManual(), closeAdd:()=>this.closeAdd(), saveBooking:()=>this.saveBooking(),
+      setGuest:(e)=>this.setGuest(e), setRate:(e)=>this.setRate(e), setCheckIn:(e)=>this.setCheckIn(e), setCheckOut:(e)=>this.setCheckOut(e),
+      incGuests:()=>this.incGuests(), decGuests:()=>this.decGuests()
+    };
+  }
+}
+</script>
+</body>
+</html>
