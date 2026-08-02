@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useApp } from '../app-context'
 import { useT } from '../lang-provider'
+import { Icon } from '../icons'
 import { Field, Modal, Stepper, SubmitButton, useToast } from '../ui'
 import { ClientPicker } from '../client-picker'
 import { egp, formatHour, packageBase, packageHours, todayKey, usd } from '@/lib/format'
@@ -25,6 +26,7 @@ export function BookingModal({
   clients,
   session,
   seed,
+  sessions = [],
 }: {
   open: boolean
   onClose: () => void
@@ -32,6 +34,8 @@ export function BookingModal({
   clients: Client[]
   session?: StudioSession | null
   seed?: BookingSeed
+  /** Everything already booked, so taken hours can be greyed out up front. */
+  sessions?: StudioSession[]
 }) {
   const t = useT()
   const toast = useToast()
@@ -50,6 +54,8 @@ export function BookingModal({
   const [hours, setHours] = useState(pricing.hourly_min_hours)
   const [addons, setAddons] = useState<string[]>([])
   const [notes, setNotes] = useState('')
+  const [showAddons, setShowAddons] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
 
   // Reset the form each time the dialog opens.
   useEffect(() => {
@@ -66,6 +72,8 @@ export function BookingModal({
       setHours(session.hours)
       setAddons((session.session_addons ?? []).map((a) => a.gear_id).filter(Boolean) as string[])
       setNotes(session.notes ?? '')
+      setShowAddons((session.session_addons ?? []).length > 0)
+      setShowNotes(Boolean(session.notes))
     } else {
       setClientName('')
       setClientId('')
@@ -77,6 +85,8 @@ export function BookingModal({
       setHours(seed?.hours ?? pricing.hourly_min_hours)
       setAddons([])
       setNotes('')
+      setShowAddons(false)
+      setShowNotes(false)
     }
   }, [open, session, seed, pricing.hourly_min_hours, studio.open_hour])
 
@@ -105,6 +115,24 @@ export function BookingModal({
     for (let h = studio.open_hour; h <= studio.close_hour - 1; h++) list.push(h)
     return list
   }, [studio.open_hour, studio.close_hour])
+
+  /** Hours already spoken for on this date, ignoring the booking being edited. */
+  const bookedHours = useMemo(() => {
+    const taken = new Set<number>()
+    for (const s of sessions) {
+      if (s.date !== date || s.status === 'cancelled' || s.id === session?.id) continue
+      for (let h = s.start_hour; h < s.start_hour + s.hours; h++) taken.add(h)
+    }
+    return taken
+  }, [sessions, date, session?.id])
+
+  // Say so in the form rather than letting the database reject it on save.
+  const clash = useMemo(() => {
+    for (let h = startHour; h < startHour + resolvedHours; h++) {
+      if (bookedHours.has(h)) return true
+    }
+    return false
+  }, [bookedHours, startHour, resolvedHours])
 
   const fits = startHour + resolvedHours <= studio.close_hour
 
@@ -172,7 +200,7 @@ export function BookingModal({
             type="button"
             onClick={submit}
             pending={pending}
-            disabled={!clientName.trim() || !fits}
+            disabled={!clientName.trim() || !fits || clash}
             className="flex-[1.6]"
           >
             {t('orders.confirmBooking')}
@@ -280,60 +308,106 @@ export function BookingModal({
 
         <Field
           label={t('orders.startTime')}
-          error={!fits ? `Ends after closing (${formatHour(studio.close_hour)})` : undefined}
+          error={
+            !fits
+              ? `Ends after ${formatHour(studio.close_hour === 24 ? 0 : studio.close_hour)}`
+              : clash
+                ? t('orders.overlap')
+                : undefined
+          }
         >
-          <div className="flex flex-wrap gap-1.5">
-            {startChoices.map((h) => (
-              <button
-                key={h}
-                type="button"
-                onClick={() => setStartHour(h)}
-                data-on={startHour === h}
-                className="ob-chip h-8 px-2.5 text-[11.5px]"
-                style={{ opacity: h + resolvedHours <= studio.close_hour ? 1 : 0.35 }}
-              >
-                <span className="ob-ltr">{formatHour(h)}</span>
-              </button>
-            ))}
-          </div>
+          {/*
+            A whole day of chips was a wall of 24 buttons on a phone. A native
+            select is one line and opens the iOS wheel, and it can say which
+            hours are already taken before the booking is attempted.
+          */}
+          <select
+            className="ob-input"
+            value={startHour}
+            onChange={(e) => setStartHour(Number(e.target.value))}
+          >
+            {startChoices.map((h) => {
+              const taken = bookedHours.has(h)
+              const overruns = h + resolvedHours > studio.close_hour
+              return (
+                <option key={h} value={h} disabled={taken}>
+                  {formatHour(h)}
+                  {taken ? ` — ${t('orders.taken')}` : overruns ? ' — …' : ''}
+                </option>
+              )
+            })}
+          </select>
         </Field>
 
         {addonChoices.length > 0 && (
-          <Field label={t('orders.addOns')}>
-            <div className="flex flex-wrap gap-1.5">
-              {addonChoices.map((g) => {
-                const on = addons.includes(g.id)
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() =>
-                      setAddons((prev) =>
-                        prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
-                      )
-                    }
-                    data-on={on}
-                    className="ob-chip"
-                  >
-                    {g.name}
-                    <span className={`ob-ltr text-[11px] ${on ? 'text-bone/70' : 'text-ink/40'}`}>
-                      {egp(g.rate)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </Field>
+          <div className="rounded-[14px] border border-ink/10">
+            <button
+              type="button"
+              onClick={() => setShowAddons((v) => !v)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start"
+            >
+              <span className="min-w-0">
+                <span className="ob-label block">{t('orders.addOns')}</span>
+                <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-ink/60">
+                  {addons.length === 0
+                    ? t('orders.addOnsNone')
+                    : `${addons.length} · ${egp(addonTotal)}`}
+                </span>
+              </span>
+              <Icon
+                name="chevronDown"
+                size={16}
+                className={`flex-shrink-0 text-ink/40 transition-transform ${showAddons ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showAddons && (
+              <div className="flex flex-wrap gap-1.5 border-t border-ink/8 px-4 py-3">
+                {addonChoices.map((g) => {
+                  const on = addons.includes(g.id)
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() =>
+                        setAddons((prev) =>
+                          prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id],
+                        )
+                      }
+                      data-on={on}
+                      className="ob-chip"
+                    >
+                      {g.name}
+                      <span className={`ob-ltr text-[11px] ${on ? 'text-bone/70' : 'text-ink/40'}`}>
+                        {egp(g.rate)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         )}
 
-        <Field label={t('common.notes')}>
-          <textarea
-            className="ob-input"
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </Field>
+        {showNotes ? (
+          <Field label={t('common.notes')}>
+            <textarea
+              className="ob-input"
+              rows={2}
+              autoFocus
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowNotes(true)}
+            className="self-start text-[12.5px] font-bold text-ink/50 hover:text-ink"
+          >
+            + {t('common.notes')}
+          </button>
+        )}
 
         <div className="rounded-[14px] bg-ink/6 px-4 py-3.5">
           <div className="flex items-center justify-between gap-3">

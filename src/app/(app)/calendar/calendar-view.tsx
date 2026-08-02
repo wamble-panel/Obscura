@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useIsPhone } from '@/lib/use-media'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/components/app-context'
 import { useLang, useT } from '@/components/lang-provider'
-import { Badge, Card, EmptyState, PageHeader } from '@/components/ui'
+import { Badge, Card, EmptyState, PageHeader, Segmented } from '@/components/ui'
 import { Icon } from '@/components/icons'
 import { BookingModal, type BookingSeed } from '@/components/orders/booking-modal'
 import { SessionDrawer } from '@/components/orders/session-drawer'
@@ -44,6 +45,12 @@ export function CalendarView({
   const [editing, setEditing] = useState<StudioSession | null>(null)
   const [seed, setSeed] = useState<BookingSeed | undefined>()
   const [drawerId, setDrawerId] = useState<string | null>(null)
+  const isPhone = useIsPhone()
+  // On a phone the 24-hour grid is most of the screen, and the day's bookings
+  // were listed twice. Default to the list; the grid is a tap away when you
+  // actually need to see gaps.
+  const [dayView, setDayView] = useState<'list' | 'grid'>('list')
+  const showGrid = !isPhone || dayView === 'grid'
 
   // Drag-to-select across the hour column
   const [dragging, setDragging] = useState(false)
@@ -220,15 +227,28 @@ export function CalendarView({
                 {t('cal.free')}
               </div>
             </div>
-            <div className="ob-ltr rounded-full bg-ink/6 px-3 py-1.5 text-[12px] font-bold">
-              {egp(dayRevenue)}
+            <div className="flex items-center gap-2">
+              <div className="ob-ltr rounded-full bg-ink/6 px-3 py-1.5 text-[12px] font-bold">
+                {egp(dayRevenue)}
+              </div>
+              {isPhone && (
+                <Segmented<'list' | 'grid'>
+                  value={dayView}
+                  onChange={setDayView}
+                  options={[
+                    { value: 'list', label: t('cal.list') },
+                    { value: 'grid', label: t('cal.hours') },
+                  ]}
+                />
+              )}
             </div>
           </div>
 
+          {showGrid ? (
           <div
             ref={timelineRef}
             data-no-pull
-            className="ob-scroll-y relative mt-4 max-h-[62vh] overflow-y-auto lg:max-h-[560px]"
+            className="ob-scroll-y relative mt-4 max-h-[46vh] overflow-y-auto sm:max-h-[62vh] lg:max-h-[560px]"
           >
           <div
             className="relative select-none"
@@ -305,17 +325,70 @@ export function CalendarView({
             )}
           </div>
           </div>
+          ) : (
+            /* Phone default: just what is booked, tappable, no dead hours. */
+            <div className="mt-4 flex flex-col gap-2">
+              {daySessions.length === 0 ? (
+                <EmptyState
+                  icon="calendar"
+                  title={t('orders.empty')}
+                  action={
+                    canCreate ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(null)
+                          setSeed({ date: selected })
+                          setModalOpen(true)
+                        }}
+                        className="ob-btn ob-btn-primary"
+                      >
+                        <Icon name="plus" size={15} />
+                        {t('orders.book')}
+                      </button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                daySessions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setDrawerId(s.id)}
+                    className="flex items-center gap-3 rounded-[14px] border border-ink/8 bg-paper/60 px-3.5 py-3 text-start"
+                  >
+                    <span className="ob-ltr flex w-[58px] flex-shrink-0 flex-col items-center rounded-[10px] bg-ink/6 px-1 py-1.5">
+                      <span className="text-[12.5px] font-extrabold leading-none">
+                        {formatHour(s.start_hour).replace(':00', '')}
+                      </span>
+                      <span className="mt-0.5 text-[9.5px] font-bold text-ink/45">{s.hours}h</span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-extrabold">
+                        {s.client_name}
+                      </span>
+                      <span className="ob-ltr block truncate text-[11.5px] font-semibold text-ink/50">
+                        {formatHour(s.start_hour)} – {formatHour(s.start_hour + s.hours)}
+                      </span>
+                    </span>
+                    <span className="flex flex-shrink-0 flex-col items-end gap-1">
+                      <span className="ob-ltr text-[13px] font-extrabold">
+                        {egp(s.total_amount)}
+                      </span>
+                      <Badge tone={s.deposit_paid ? 'ink' : 'warn'}>
+                        {s.deposit_paid ? t('orders.confirmed') : t('orders.pending')}
+                      </Badge>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
 
           {canCreate && (
             <p className="mt-3.5 hidden text-[11.5px] font-medium text-ink/45 lg:block">
               {t('orders.dragHint')}
             </p>
-          )}
-
-          {daySessions.length === 0 && (
-            <div className="mt-2 text-center text-[12.5px] font-medium text-ink/40 lg:hidden">
-              {t('orders.empty')}
-            </div>
           )}
         </Card>
 
@@ -450,7 +523,7 @@ export function CalendarView({
             </div>
           </div>
 
-          <Card>
+          <Card className="hidden lg:block">
             <div className="mb-3 text-[13.5px] font-extrabold">{t('dash.todaySessions')}</div>
             {daySessions.length === 0 ? (
               <EmptyState
@@ -497,6 +570,7 @@ export function CalendarView({
         }}
         gear={gear}
         clients={clients}
+        sessions={sessions}
         session={editing}
         seed={seed}
       />

@@ -150,12 +150,16 @@ const en = {
   'orders.shoot.food': 'Food',
   'orders.shoot.auto': 'Auto',
   'orders.shoot.other': 'Other',
+  'orders.taken': 'booked',
+  'orders.addOnsNone': 'None — tap to add gear',
 
   'cal.title': 'Calendar',
   'cal.sub': 'Studio availability and the shoot schedule',
   'cal.dayUsage': 'booked',
   'cal.free': 'free',
   'cal.selectDay': 'Pick a day',
+  'cal.list': 'List',
+  'cal.hours': 'Hours',
 
   'rentals.title': 'Rentals',
   'rentals.sub': 'Equipment out on rent',
@@ -595,12 +599,16 @@ const ar: Record<DictKey, string> = {
   'orders.shoot.food': 'طعام',
   'orders.shoot.auto': 'سيارات',
   'orders.shoot.other': 'أخرى',
+  'orders.taken': 'محجوزة',
+  'orders.addOnsNone': 'لا شيء — اضغط لإضافة معدات',
 
   'cal.title': 'التقويم',
   'cal.sub': 'توافر الاستوديو وجدول التصوير',
   'cal.dayUsage': 'محجوزة',
   'cal.free': 'متاحة',
   'cal.selectDay': 'اختر يومًا',
+  'cal.list': 'قائمة',
+  'cal.hours': 'الساعات',
 
   'rentals.title': 'التأجير',
   'rentals.sub': 'المعدات المؤجّرة خارج الاستوديو',

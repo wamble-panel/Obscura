@@ -234,6 +234,7 @@ export function OrdersView({
         }}
         gear={gear}
         clients={clients}
+        sessions={sessions}
         session={editing}
       />
 
