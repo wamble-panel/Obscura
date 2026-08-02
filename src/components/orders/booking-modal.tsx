@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useApp } from '../app-context'
 import { useT } from '../lang-provider'
 import { Icon } from '../icons'
-import { Field, Modal, Stepper, SubmitButton, useToast } from '../ui'
+import { Field, Modal, SubmitButton, useToast } from '../ui'
 import { ClientPicker } from '../client-picker'
 import { egp, formatHour, packageBase, packageHours, todayKey, usd } from '@/lib/format'
 import { saveSession, type SessionInput } from '@/server/sessions'
@@ -134,6 +134,42 @@ export function BookingModal({
     return false
   }, [bookedHours, startHour, resolvedHours])
 
+  const endHour = startHour + resolvedHours
+
+  /**
+   * How late this booking could run: the studio's closing time, or the start of
+   * the next booking that day, whichever comes first. Offering an end time that
+   * cannot be taken is worse than offering fewer.
+   */
+  const latestEnd = useMemo(() => {
+    let limit = studio.close_hour
+    for (let h = startHour + 1; h <= studio.close_hour; h++) {
+      if (bookedHours.has(h)) {
+        limit = h
+        break
+      }
+    }
+    return limit
+  }, [bookedHours, startHour, studio.close_hour])
+
+  const endChoices = useMemo(() => {
+    const list: number[] = []
+    for (let h = startHour + pricing.hourly_min_hours; h <= latestEnd; h++) list.push(h)
+    // Always show the current value, even if the day has since filled up
+    // around it — an empty dropdown is a dead end.
+    if (!list.includes(endHour)) list.unshift(endHour)
+    return list
+  }, [startHour, latestEnd, pricing.hourly_min_hours, endHour])
+
+  // Moving the start must not silently leave the end behind it.
+  useEffect(() => {
+    if (pkg !== 'hourly') return
+    const maxHours = latestEnd - startHour
+    if (maxHours >= pricing.hourly_min_hours && hours > maxHours) {
+      setHours(maxHours)
+    }
+  }, [startHour, latestEnd, pkg, hours, pricing.hourly_min_hours])
+
   const fits = startHour + resolvedHours <= studio.close_hour
 
   const submit = () => {
@@ -240,19 +276,17 @@ export function BookingModal({
         </Field>
 
         <Field label={t('orders.shootType')}>
-          <div className="flex flex-wrap gap-1.5">
+          <select
+            className="ob-input"
+            value={shootType}
+            onChange={(e) => setShootType(e.target.value)}
+          >
             {SHOOT_TYPES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setShootType(s)}
-                data-on={shootType === s}
-                className="ob-chip flex-1"
-              >
+              <option key={s} value={s}>
                 {t(`orders.shoot.${s}`)}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </Field>
 
         <Field label={t('orders.package')}>
@@ -290,54 +324,68 @@ export function BookingModal({
           </div>
         </Field>
 
+        <Field label={t('common.date')}>
+          <input
+            className="ob-input"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </Field>
+
+        {/*
+          Start and end, the way people actually describe a booking — "eleven
+          to four", not "eleven for five hours". The duration falls out of it.
+          Both are selects, so on a phone this is two taps of the iOS wheel
+          rather than a grid of 24 buttons.
+        */}
         <div className="flex gap-3">
-          <Field label={t('common.date')} className="flex-[1.3]">
-            <input
+          <Field label={t('orders.startTime')} className="flex-1">
+            <select
               className="ob-input"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+              value={startHour}
+              onChange={(e) => setStartHour(Number(e.target.value))}
+            >
+              {startChoices.map((h) => {
+                const taken = bookedHours.has(h)
+                return (
+                  <option key={h} value={h} disabled={taken}>
+                    {formatHour(h)}
+                    {taken ? ` — ${t('orders.taken')}` : ''}
+                  </option>
+                )
+              })}
+            </select>
           </Field>
-          {pkg === 'hourly' && (
-            <Field label={t('common.hours')} className="flex-1">
-              <Stepper value={hours} onChange={setHours} min={pricing.hourly_min_hours} max={12} />
-            </Field>
-          )}
+
+          <Field label={t('orders.endTime')} className="flex-1">
+            {pkg === 'hourly' ? (
+              <select
+                className="ob-input"
+                value={endHour}
+                onChange={(e) => setHours(Number(e.target.value) - startHour)}
+              >
+                {endChoices.map((h) => (
+                  <option key={h} value={h}>
+                    {formatHour(h)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              /* A package fixes its own length, so this is the outcome, not a choice. */
+              <div className="ob-input flex items-center justify-between bg-ink/5 text-ink/60">
+                <span className="ob-ltr">{formatHour(endHour)}</span>
+                <span className="ob-ltr text-[11.5px] font-bold">{resolvedHours}h</span>
+              </div>
+            )}
+          </Field>
         </div>
 
-        <Field
-          label={t('orders.startTime')}
-          error={
-            !fits
-              ? `Ends after ${formatHour(studio.close_hour === 24 ? 0 : studio.close_hour)}`
-              : clash
-                ? t('orders.overlap')
-                : undefined
-          }
-        >
-          {/*
-            A whole day of chips was a wall of 24 buttons on a phone. A native
-            select is one line and opens the iOS wheel, and it can say which
-            hours are already taken before the booking is attempted.
-          */}
-          <select
-            className="ob-input"
-            value={startHour}
-            onChange={(e) => setStartHour(Number(e.target.value))}
-          >
-            {startChoices.map((h) => {
-              const taken = bookedHours.has(h)
-              const overruns = h + resolvedHours > studio.close_hour
-              return (
-                <option key={h} value={h} disabled={taken}>
-                  {formatHour(h)}
-                  {taken ? ` — ${t('orders.taken')}` : overruns ? ' — …' : ''}
-                </option>
-              )
-            })}
-          </select>
-        </Field>
+        {(clash || !fits) && (
+          <p className="-mt-2 text-[11.5px] font-semibold text-clay">
+            {clash ? t('orders.overlap') : t('orders.pastClosing')}
+          </p>
+        )}
 
         {addonChoices.length > 0 && (
           <div className="rounded-[14px] border border-ink/10">
