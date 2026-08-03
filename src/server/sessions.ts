@@ -15,6 +15,7 @@ export type SessionInput = {
   phone?: string | null
   shootType: string
   date: string
+  endDate?: string | null
   startHour: number
   package: SessionPackage
   hours: number
@@ -50,6 +51,9 @@ export async function saveSession(input: SessionInput): Promise<ActionResult> {
 
     if (!input.clientName?.trim()) return { ok: false, error: 'Enter a client name.' }
     if (!input.date) return { ok: false, error: 'Pick a date.' }
+    if (input.endDate && input.endDate < input.date) {
+      return { ok: false, error: 'The last day cannot be before the first day.' }
+    }
 
     /*
      * Keep the client list and the bookings joined up. A name typed at the front
@@ -99,6 +103,7 @@ export async function saveSession(input: SessionInput): Promise<ActionResult> {
       phone: input.phone?.trim() || null,
       shoot_type: input.shootType,
       date: input.date,
+      end_date: input.endDate && input.endDate > input.date ? input.endDate : input.date,
       start_hour: input.startHour,
       package: input.package,
       hours: priced.hours,

@@ -20,7 +20,7 @@ import { Icon } from '@/components/icons'
 import { BookingModal } from '@/components/orders/booking-modal'
 import { SessionDrawer } from '@/components/orders/session-drawer'
 import { PERMISSIONS } from '@/lib/permissions'
-import { egp, formatDate, formatHour, toCsv } from '@/lib/format'
+import { dayCount, egp, formatDate, formatHour, toCsv } from '@/lib/format'
 import type { Client, Gear, SessionStatus, StudioSession } from '@/lib/types'
 
 type Filter = 'upcoming' | 'all' | SessionStatus
@@ -49,7 +49,7 @@ export function OrdersView({
     const q = query.trim().toLowerCase()
     return sessions
       .filter((s) => {
-        if (filter === 'upcoming') return s.date >= today && s.status !== 'cancelled'
+        if (filter === 'upcoming') return (s.end_date ?? s.date) >= today && s.status !== 'cancelled'
         if (filter !== 'all') return s.status === filter
         return true
       })
@@ -65,8 +65,8 @@ export function OrdersView({
 
   const stats = useMemo(() => {
     const active = sessions.filter((s) => s.status !== 'cancelled')
-    const upcoming = active.filter((s) => s.date >= today)
-    const unpaid = active.filter((s) => !s.deposit_paid && s.date >= today)
+    const upcoming = active.filter((s) => (s.end_date ?? s.date) >= today)
+    const unpaid = active.filter((s) => !s.deposit_paid && (s.end_date ?? s.date) >= today)
     return {
       total: active.length,
       upcoming: upcoming.length,
@@ -82,6 +82,8 @@ export function OrdersView({
         client: s.client_name,
         phone: s.phone ?? '',
         date: s.date,
+        end_date: s.end_date,
+        days: dayCount(s.date, s.end_date),
         start: formatHour(s.start_hour),
         hours: s.hours,
         package: s.package,
@@ -185,9 +187,16 @@ export function OrdersView({
                   <Row key={s.id} onClick={() => setDrawerId(s.id)}>
                     <Cell className="ob-ltr font-mono text-[12px] text-ink/50">{s.code}</Cell>
                     <Cell bold>{s.client_name}</Cell>
-                    <Cell>{formatDate(s.date, lang, 'short')}</Cell>
+                    <Cell>
+                      {formatDate(s.date, lang, 'short')}
+                      {dayCount(s.date, s.end_date) > 1 && (
+                        <span className="text-ink/45"> – {formatDate(s.end_date, lang, 'short')}</span>
+                      )}
+                    </Cell>
                     <Cell className="ob-ltr text-ink/60">
-                      {formatHour(s.start_hour)} · {s.hours}h
+                      {dayCount(s.date, s.end_date) > 1
+                        ? `${dayCount(s.date, s.end_date)} ${t('orders.days')}`
+                        : `${formatHour(s.start_hour)} · ${s.hours}h`}
                     </Cell>
                     <Cell bold className="ob-ltr">
                       {egp(s.total_amount)}
@@ -212,7 +221,9 @@ export function OrdersView({
                   <div className="min-w-0">
                     <div className="truncate text-[13.5px] font-extrabold">{s.client_name}</div>
                     <div className="ob-ltr mt-0.5 text-[11.5px] font-semibold text-ink/50">
-                      {formatDate(s.date, lang, 'short')} · {formatHour(s.start_hour)}
+                      {dayCount(s.date, s.end_date) > 1
+                        ? `${formatDate(s.date, lang, 'short')} – ${formatDate(s.end_date, lang, 'short')}`
+                        : `${formatDate(s.date, lang, 'short')} · ${formatHour(s.start_hour)}`}
                     </div>
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1">

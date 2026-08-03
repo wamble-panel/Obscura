@@ -5,7 +5,7 @@ import { useApp } from '../app-context'
 import { useT } from '../lang-provider'
 import { Badge, ConfirmButton, Drawer, useToast } from '../ui'
 import { Icon } from '../icons'
-import { egp, formatDate, formatHour, usd } from '@/lib/format'
+import { dayCount, egp, formatDate, formatHour, usd } from '@/lib/format'
 import { PERMISSIONS } from '@/lib/permissions'
 import { deleteSession, setDepositPaid, setSessionStatus } from '@/server/sessions'
 import { useLang } from '../lang-provider'
@@ -42,10 +42,22 @@ export function SessionDrawer({
       if (result.ok && close) onClose()
     })
 
+  const days = dayCount(session.date, session.end_date)
+
   const rows: [string, string][] = [
-    [t('common.date'), formatDate(session.date, lang)],
-    [t('common.time'), formatHour(session.start_hour) + ' – ' + formatHour(session.start_hour + session.hours)],
-    [t('orders.duration'), `${session.hours}h`],
+    days > 1
+      ? [
+          t('orders.dayRange'),
+          `${formatDate(session.date, lang, 'short')} – ${formatDate(session.end_date, lang, 'short')}`,
+        ]
+      : [t('common.date'), formatDate(session.date, lang)],
+    days > 1
+      ? [t('orders.duration'), `${days} ${t('orders.days')}`]
+      : [
+          t('common.time'),
+          formatHour(session.start_hour) + ' – ' + formatHour(session.start_hour + session.hours),
+        ],
+    ...(days > 1 ? [] : ([[t('orders.duration'), `${session.hours}h`]] as [string, string][])),
     [
       t('orders.package'),
       session.package === 'hourly'

@@ -29,7 +29,14 @@ export default async function DashboardPage() {
 
   const [todayRes, upcomingRes, rentalsRes, projectsRes, meRes, summaryRes] = await Promise.all([
     allowed(PERMISSIONS.ordersView)
-      ? supabase.from('sessions').select('*').eq('date', today).order('start_hour')
+      ? // A booking that runs several days is on today's board every day of its
+        // run, not only on the day it started.
+        supabase
+          .from('sessions')
+          .select('*')
+          .lte('date', today)
+          .gte('end_date', today)
+          .order('start_hour')
       : Promise.resolve({ data: [] }),
     allowed(PERMISSIONS.ordersView)
       ? supabase

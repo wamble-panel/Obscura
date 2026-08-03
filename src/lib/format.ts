@@ -108,6 +108,12 @@ export function timeAgo(iso: string | null, lang: Lang = 'en'): string {
   return lang === 'ar' ? `منذ ${ltr(months)} شهر` : `${months}mo ago`
 }
 
+/** Inclusive day count for a booking that may span more than one date. */
+export function dayCount(from: string, to?: string | null): number {
+  if (!to || to <= from) return 1
+  return daysBetween(from, to) + 1
+}
+
 export function initials(name: string | null | undefined): string {
   const parts = String(name ?? '').trim().split(/\s+/)
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
