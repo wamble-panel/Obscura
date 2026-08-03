@@ -11,7 +11,7 @@ import { BookingModal, type BookingSeed } from '@/components/orders/booking-moda
 import { SessionDrawer } from '@/components/orders/session-drawer'
 import { PERMISSIONS } from '@/lib/permissions'
 import { MONTHS, WEEKDAYS_MIN } from '@/lib/i18n'
-import { dateKey, egp, formatDate, formatHour, pad, todayKey } from '@/lib/format'
+import { addDays, dateKey, dayCount, egp, formatDate, formatHour, pad, todayKey } from '@/lib/format'
 import type { Client, Gear, StudioSession } from '@/lib/types'
 
 const ROW_HEIGHT = 40
@@ -65,13 +65,25 @@ export function CalendarView({
 
   const canCreate = can(PERMISSIONS.ordersCreate)
 
+  /*
+   * A booking that runs several days belongs to every day it touches, not just
+   * the first — otherwise the middle of a three-day shoot looks free on the
+   * grid while the database refuses to book it.
+   */
   const byDate = useMemo(() => {
     const map = new Map<string, StudioSession[]>()
     for (const s of sessions) {
       if (s.status === 'cancelled') continue
-      const list = map.get(s.date) ?? []
-      list.push(s)
-      map.set(s.date, list)
+      const last = s.end_date ?? s.date
+      // Guard the loop on a count rather than the date string, so a bad row
+      // can never spin forever.
+      const span = Math.min(dayCount(s.date, last), 90)
+      for (let i = 0; i < span; i++) {
+        const key = addDays(s.date, i)
+        const list = map.get(key) ?? []
+        list.push(s)
+        map.set(key, list)
+      }
     }
     for (const list of map.values()) list.sort((a, b) => a.start_hour - b.start_hour)
     return map
@@ -83,6 +95,8 @@ export function CalendarView({
     for (const [date, list] of byDate) {
       map.set(date, {
         count: list.length,
+        // A multi-day booking holds the studio all day, every day of its run,
+        // so its `hours` is the length of one day, not of the whole booking.
         hours: list.reduce((sum, s) => sum + s.hours, 0),
         unpaid: list.some((s) => !s.deposit_paid),
       })

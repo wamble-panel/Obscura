@@ -83,6 +83,8 @@ export type StudioSession = {
   phone: string | null
   shoot_type: string
   date: string
+  /** Last day of the booking; equal to `date` for a single-day session. */
+  end_date: string
   start_hour: number
   package: SessionPackage
   hours: number

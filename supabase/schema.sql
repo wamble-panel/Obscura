@@ -643,19 +643,53 @@ create table if not exists public.session_addons (
 );
 create index if not exists session_addons_session_idx on public.session_addons(session_id);
 
--- Double booking guard: two sessions may not overlap on the same date.
+-- Multi-day bookings. A single-day session has end_date = date, which is what
+-- every existing row becomes, so nothing changes for them.
+alter table public.sessions add column if not exists end_date date;
+update public.sessions set end_date = date where end_date is null;
+
+do $$ begin
+  alter table public.sessions alter column end_date set not null;
+exception when others then null; end $$;
+
+do $$ begin
+  alter table public.sessions
+    add constraint sessions_end_after_start check (end_date >= date);
+exception when duplicate_object then null; end $$;
+
+create index if not exists sessions_range_idx on public.sessions(date, end_date);
+
+/**
+ * Double booking guard, over date ranges.
+ *
+ * Two single-day bookings only clash if they share a day AND their hours
+ * overlap. A booking that spans several days takes the studio for all of them —
+ * that is what a client is buying — so any date-range intersection with a
+ * multi-day booking is a clash, whatever the hours say.
+ */
 create or replace function public.check_session_overlap()
 returns trigger language plpgsql as $$
-declare v_conflict text;
+declare
+  v_conflict text;
+  v_multi    boolean;
 begin
   if new.status = 'cancelled' then return new; end if;
-  select code into v_conflict from public.sessions s
-   where s.date = new.date
-     and s.id <> coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid)
+  v_multi := new.end_date > new.date;
+
+  select s.code into v_conflict from public.sessions s
+   where s.id <> coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid)
      and s.status <> 'cancelled'
-     and new.start_hour < s.start_hour + s.hours
-     and s.start_hour < new.start_hour + new.hours
+     -- the two date ranges touch at all
+     and new.date <= s.end_date
+     and s.date <= new.end_date
+     and (
+       v_multi
+       or s.end_date > s.date
+       or (new.start_hour < s.start_hour + s.hours
+           and s.start_hour < new.start_hour + new.hours)
+     )
    limit 1;
+
   if v_conflict is not null then
     raise exception 'The studio is already booked in that time range (%).', v_conflict
       using errcode = 'unique_violation';
@@ -677,11 +711,28 @@ returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
   p jsonb;
+  v_days int;
 begin
   select value into p from public.app_settings where key = 'pricing';
   if p is null then return new; end if;
 
-  if new.package = 'half' then
+  -- Missing means a single day. Backwards is a mistake worth surfacing: quietly
+  -- collapsing it to one day would invoice for one day when several were meant.
+  new.end_date := coalesce(new.end_date, new.date);
+  if new.end_date < new.date then
+    raise exception 'The last day cannot be before the first day.'
+      using errcode = 'check_violation';
+  end if;
+
+  v_days := (new.end_date - new.date) + 1;
+
+  if v_days > 1 then
+    -- Several days is sold as full days: one day rate per day, and the daily
+    -- window is the full-day length.
+    new.package     := 'full';
+    new.hours       := coalesce((p->>'full_day_hours')::int, 10);
+    new.base_amount := v_days * coalesce((p->>'full_day_price')::numeric, 2500);
+  elsif new.package = 'half' then
     new.hours       := coalesce((p->>'half_day_hours')::int, 5);
     new.base_amount := coalesce((p->>'half_day_price')::numeric, 1200);
   elsif new.package = 'full' then
@@ -1033,6 +1084,16 @@ create trigger payments_ledger after insert on public.payments
  * Completing the session promotes the draft to "sent". Cancelling the session
  * voids the invoice rather than deleting it, so the number is never reused.
  */
+-- "Zeina — studio session (OB-1004)" or "… · 3 days" when it spans more.
+create or replace function public.session_line_label(
+  p_client text, p_code text, p_from date, p_to date
+) returns text language sql immutable as $$
+  select p_client || ' — studio session (' || p_code || ')' ||
+         case when p_to > p_from
+              then ' · ' || ((p_to - p_from) + 1) || ' days'
+              else '' end;
+$$;
+
 create or replace function public.session_sync_invoice()
 returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -1080,14 +1141,14 @@ begin
     values (
       new.client_id, new.client_name, v_client.company,
       coalesce(new.phone, v_client.phone), v_client.email,
-      new.date, new.date + 14, 'draft', v_terms,
+      new.date, new.end_date + 14, 'draft', v_terms,
       'Studio session ' || new.code)
     returning id into v_invoice;
 
     insert into public.invoice_items(invoice_id, description, qty, unit_price, ref_type, ref_id, sort)
     values (
       v_invoice,
-      new.client_name || ' — studio session (' || new.code || ')',
+      public.session_line_label(new.client_name, new.code, new.date, new.end_date),
       1, new.total_amount, 'session', new.id, 0);
 
     return new;
@@ -1098,10 +1159,12 @@ begin
 
   -- Keep a draft in step with the booking it came from.
   if new.total_amount is distinct from old.total_amount
-     or new.client_name is distinct from old.client_name then
+     or new.client_name is distinct from old.client_name
+     or new.end_date is distinct from old.end_date then
     update public.invoice_items
        set unit_price = new.total_amount,
-           description = new.client_name || ' — studio session (' || new.code || ')'
+           description = public.session_line_label(
+                           new.client_name, new.code, new.date, new.end_date)
      where ref_type = 'session' and ref_id = new.id
        and exists (select 1 from public.invoices i
                     where i.id = invoice_id and i.status = 'draft');
@@ -1147,13 +1210,14 @@ begin
     values (
       s.client_id, s.client_name, v_client.company,
       coalesce(s.phone, v_client.phone), v_client.email,
-      s.date, s.date + 14,
+      s.date, s.end_date + 14,
       (case when s.status = 'completed' then 'sent' else 'draft' end)::public.invoice_status,
       v_terms, 'Studio session ' || s.code)
     returning id into v_invoice;
 
     insert into public.invoice_items(invoice_id, description, qty, unit_price, ref_type, ref_id, sort)
-    values (v_invoice, s.client_name || ' — studio session (' || s.code || ')',
+    values (v_invoice,
+            public.session_line_label(s.client_name, s.code, s.date, s.end_date),
             1, s.total_amount, 'session', s.id, 0);
   end loop;
 end $$;

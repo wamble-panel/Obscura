@@ -2,11 +2,21 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useApp } from '../app-context'
-import { useT } from '../lang-provider'
+import { useLang } from '../lang-provider'
 import { Icon } from '../icons'
 import { Field, Modal, SubmitButton, useToast } from '../ui'
 import { ClientPicker } from '../client-picker'
-import { egp, formatHour, packageBase, packageHours, todayKey, usd } from '@/lib/format'
+import {
+  addDays,
+  daysBetween,
+  egp,
+  formatDateShort,
+  formatHour,
+  packageBase,
+  packageHours,
+  todayKey,
+  usd,
+} from '@/lib/format'
 import { saveSession, type SessionInput } from '@/server/sessions'
 import type { Client, Gear, SessionPackage, StudioSession } from '@/lib/types'
 
@@ -14,6 +24,7 @@ const SHOOT_TYPES = ['product', 'fashion', 'food', 'auto', 'other'] as const
 
 export type BookingSeed = {
   date?: string
+  endDate?: string
   startHour?: number
   hours?: number
   package?: SessionPackage
@@ -37,7 +48,7 @@ export function BookingModal({
   /** Everything already booked, so taken hours can be greyed out up front. */
   sessions?: StudioSession[]
 }) {
-  const t = useT()
+  const { t, lang } = useLang()
   const toast = useToast()
   const { settings } = useApp()
   const { pricing, studio } = settings
@@ -49,6 +60,7 @@ export function BookingModal({
   const [phone, setPhone] = useState('')
   const [shootType, setShootType] = useState<string>('product')
   const [date, setDate] = useState(todayKey())
+  const [endDate, setEndDate] = useState(todayKey())
   const [startHour, setStartHour] = useState(11)
   const [pkg, setPkg] = useState<SessionPackage>('half')
   const [hours, setHours] = useState(pricing.hourly_min_hours)
@@ -67,6 +79,7 @@ export function BookingModal({
       setPhone(session.phone ?? '')
       setShootType(session.shoot_type)
       setDate(session.date)
+      setEndDate(session.end_date ?? session.date)
       setStartHour(session.start_hour)
       setPkg(session.package)
       setHours(session.hours)
@@ -80,6 +93,7 @@ export function BookingModal({
       setPhone('')
       setShootType('product')
       setDate(seed?.date ?? todayKey())
+      setEndDate(seed?.endDate ?? seed?.date ?? todayKey())
       setStartHour(seed?.startHour ?? Math.max(studio.open_hour, 11))
       setPkg(seed?.package ?? 'half')
       setHours(seed?.hours ?? pricing.hourly_min_hours)
@@ -95,8 +109,17 @@ export function BookingModal({
     [addons, gear],
   )
 
+  // Several days is sold as full days — the database prices it that way, so the
+  // form must show the same number or the total on screen would be a lie.
+  const days = Math.max(1, daysBetween(date, endDate) + 1)
+  const isMultiDay = days > 1
+
+  useEffect(() => {
+    if (endDate < date) setEndDate(date)
+  }, [date, endDate])
+
   const resolvedHours = packageHours(pkg, hours, pricing)
-  const base = packageBase(pkg, hours, pricing)
+  const base = isMultiDay ? days * pricing.full_day_price : packageBase(pkg, hours, pricing)
   const total = base + addonTotal
   const deposit = Math.round((total * pricing.deposit_pct) / 100)
 
@@ -116,23 +139,37 @@ export function BookingModal({
     return list
   }, [studio.open_hour, studio.close_hour])
 
-  /** Hours already spoken for on this date, ignoring the booking being edited. */
+  /** Everything else on the books that could get in the way, minus this booking. */
+  const others = useMemo(
+    () => sessions.filter((s) => s.status !== 'cancelled' && s.id !== session?.id),
+    [sessions, session?.id],
+  )
+
+  /** Hours already spoken for on the first day. */
   const bookedHours = useMemo(() => {
     const taken = new Set<number>()
-    for (const s of sessions) {
-      if (s.date !== date || s.status === 'cancelled' || s.id === session?.id) continue
+    for (const s of others) {
+      if (s.date !== date) continue
       for (let h = s.start_hour; h < s.start_hour + s.hours; h++) taken.add(h)
     }
     return taken
-  }, [sessions, date, session?.id])
+  }, [others, date])
 
-  // Say so in the form rather than letting the database reject it on save.
+  /*
+   * Say so in the form rather than letting the database reject it on save. The
+   * rule matches check_session_overlap(): a booking that spans days takes the
+   * whole of every day it touches, so any overlapping range is a clash. Two
+   * single-day bookings only clash if their hours actually meet.
+   */
   const clash = useMemo(() => {
-    for (let h = startHour; h < startHour + resolvedHours; h++) {
-      if (bookedHours.has(h)) return true
+    for (const s of others) {
+      const sEnd = s.end_date ?? s.date
+      if (date > sEnd || s.date > endDate) continue
+      if (isMultiDay || sEnd > s.date) return true
+      if (startHour < s.start_hour + s.hours && s.start_hour < startHour + resolvedHours) return true
     }
     return false
-  }, [bookedHours, startHour, resolvedHours])
+  }, [others, date, endDate, isMultiDay, startHour, resolvedHours])
 
   const endHour = startHour + resolvedHours
 
@@ -181,6 +218,7 @@ export function BookingModal({
       phone,
       shootType,
       date,
+      endDate,
       startHour,
       package: pkg,
       hours,
@@ -289,6 +327,7 @@ export function BookingModal({
           </select>
         </Field>
 
+        {!isMultiDay && (
         <Field label={t('orders.package')}>
           <div className="flex flex-col gap-1.5">
             {pkgOptions.map((option) => {
@@ -323,15 +362,54 @@ export function BookingModal({
             })}
           </div>
         </Field>
+        )}
 
-        <Field label={t('common.date')}>
-          <input
-            className="ob-input"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </Field>
+        <div className="flex gap-3">
+          <Field label={isMultiDay ? t('orders.firstDay') : t('common.date')} className="flex-1">
+            <input
+              className="ob-input"
+              type="date"
+              value={date}
+              onChange={(e) => {
+                const next = e.target.value
+                // Drag the end along so the range keeps its length.
+                if (next && endDate >= date) {
+                  setEndDate(addDays(next, days - 1))
+                }
+                setDate(next)
+              }}
+            />
+          </Field>
+          <Field label={t('orders.lastDay')} className="flex-1">
+            <input
+              className="ob-input"
+              type="date"
+              value={endDate}
+              min={date}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        {/* Quick spans, because "three days" is how these get asked for. */}
+        <div className="-mt-1 flex flex-wrap items-center gap-1.5">
+          {[1, 2, 3, 5, 7].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setEndDate(addDays(date, n - 1))}
+              data-on={days === n}
+              className="ob-chip h-8 px-3 text-[11.5px]"
+            >
+              {n === 1 ? t('orders.oneDay') : `${n} ${t('orders.days')}`}
+            </button>
+          ))}
+          {isMultiDay && (
+            <span className="ob-ltr ms-auto text-[11.5px] font-bold text-ink/50">
+              {days} × {egp(pricing.full_day_price)}
+            </span>
+          )}
+        </div>
 
         {/*
           Start and end, the way people actually describe a booking — "eleven
@@ -339,6 +417,14 @@ export function BookingModal({
           Both are selects, so on a phone this is two taps of the iOS wheel
           rather than a grid of 24 buttons.
         */}
+        {isMultiDay ? (
+          <div className="rounded-[14px] bg-ink/5 px-4 py-3.5">
+            <div className="ob-label">{t('orders.multiDay')}</div>
+            <p className="mt-1 text-[12.5px] font-semibold text-ink/60">
+              {t('orders.multiDayHint')}
+            </p>
+          </div>
+        ) : (
         <div className="flex gap-3">
           <Field label={t('orders.startTime')} className="flex-1">
             <select
@@ -380,8 +466,9 @@ export function BookingModal({
             )}
           </Field>
         </div>
+        )}
 
-        {(clash || !fits) && (
+        {(clash || (!fits && !isMultiDay)) && (
           <p className="-mt-2 text-[11.5px] font-semibold text-clay">
             {clash ? t('orders.overlap') : t('orders.pastClosing')}
           </p>
@@ -461,7 +548,9 @@ export function BookingModal({
           <div className="flex items-center justify-between gap-3">
             <span className="text-[12.5px] font-semibold text-ink/65">
               <span className="ob-ltr">
-                {resolvedHours}h · {formatHour(startHour)} – {formatHour(startHour + resolvedHours)}
+                {isMultiDay
+                  ? `${days} ${t('orders.days')} · ${formatDateShort(date, lang)} – ${formatDateShort(endDate, lang)}`
+                  : `${resolvedHours}h · ${formatHour(startHour)} – ${formatHour(startHour + resolvedHours)}`}
               </span>
             </span>
             <span className="text-end">

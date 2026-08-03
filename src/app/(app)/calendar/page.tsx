@@ -29,7 +29,9 @@ export default async function CalendarPage({
     supabase
       .from('sessions')
       .select('*, session_addons(*)')
-      .gte('date', from)
+      // Overlap, not containment — a booking that began last month and runs
+      // into this one still belongs on this month's grid.
+      .gte('end_date', from)
       .lt('date', to)
       .order('date')
       .order('start_hour'),
