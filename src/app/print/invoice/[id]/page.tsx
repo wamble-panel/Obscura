@@ -44,8 +44,25 @@ export default async function InvoicePrintPage({
     currency !== 'EGP' && invoice.currency_amount != null
       ? money(Number(invoice.currency_amount), currency)
       : null
-  const { studio, terms } = await getSettings()
+  const { studio, terms, bank } = await getSettings()
   const { t, lang } = await getT()
+
+  /*
+   * Only the fields that were actually filled in — an invoice printing
+   * "IBAN: —" looks like something went wrong rather than like a blank.
+   */
+  const bankLines = bank.show_on_invoice
+    ? (
+        [
+          { label: t('settings.bankName'), value: bank.bank_name, ltr: false },
+          { label: t('settings.bankAccountName'), value: bank.account_name, ltr: false },
+          { label: t('settings.bankAccountNumber'), value: bank.account_number, ltr: true },
+          { label: t('settings.bankIban'), value: bank.iban, ltr: true },
+          { label: t('settings.bankSwift'), value: bank.swift, ltr: true },
+          { label: t('settings.bankExtra'), value: bank.extra, ltr: false },
+        ] as const
+      ).filter((l) => l.value.trim())
+    : []
 
   const statusLabel = t(`inv.status.${invoice.status}`)
 
@@ -278,6 +295,22 @@ export default async function InvoicePrintPage({
               </p>
             </div>
           )}
+{/* Payment details, so the client is not hunting through emails for
+              an account number. Hidden when there is nothing to print. */}
+          {bankLines.length > 0 && (
+            <div className="ob-no-break mb-4 rounded-[12px] bg-ink/4 px-4 py-3">
+              <div className="ob-label mb-1.5">{t('inv.payTo')}</div>
+              <div className="flex flex-col gap-0.5">
+                {bankLines.map((line) => (
+                  <div key={line.label} className="flex gap-2 text-[12.5px] font-medium">
+                    <span className="w-[92px] flex-shrink-0 text-ink/45">{line.label}</span>
+                    <span className={`font-semibold ${line.ltr ? 'ob-ltr' : ''}`}>{line.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Only what was actually written on this invoice — an invented
               payment term is a promise nobody at the studio made. */}
           {invoice.terms && (

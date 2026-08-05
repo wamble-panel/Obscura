@@ -2,7 +2,7 @@ import { cache } from 'react'
 import { createClient } from './supabase/server'
 import { DEFAULT_PRICING } from './format'
 import { DEFAULT_FX, normalizeFx, rateFor, type FxRates } from './currency'
-import type { PricingSettings, StudioSettings, TermsSettings } from './types'
+import type { BankSettings, PricingSettings, StudioSettings, TermsSettings } from './types'
 
 export const DEFAULT_STUDIO: StudioSettings = {
   name: 'Obscura Studio',
@@ -15,6 +15,16 @@ export const DEFAULT_STUDIO: StudioSettings = {
   phone: '01033447399',
   instagram: '@obscura_house_',
   auto_invoice: true,
+}
+
+export const DEFAULT_BANK: BankSettings = {
+  bank_name: '',
+  account_name: '',
+  account_number: '',
+  iban: '',
+  swift: '',
+  extra: '',
+  show_on_invoice: true,
 }
 
 /** Mirrors the seed in schema.sql so the app is never blank if a row is missing. */
@@ -64,6 +74,7 @@ export type AppSettings = {
   studio: StudioSettings
   pricing: PricingSettings
   terms: TermsSettings
+  bank: BankSettings
   fx: FxRates
 }
 
@@ -86,10 +97,17 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
       studio,
       pricing: { ...DEFAULT_PRICING, ...((map.get('pricing') as Partial<PricingSettings>) ?? {}) },
       terms: { ...DEFAULT_TERMS, ...((map.get('terms') as Partial<TermsSettings>) ?? {}) },
+      bank: { ...DEFAULT_BANK, ...((map.get('bank') as Partial<BankSettings>) ?? {}) },
       fx,
     }
   } catch {
     // Settings are never worth failing a page over.
-    return { studio: DEFAULT_STUDIO, pricing: DEFAULT_PRICING, terms: DEFAULT_TERMS, fx: DEFAULT_FX }
+    return {
+      studio: DEFAULT_STUDIO,
+      pricing: DEFAULT_PRICING,
+      terms: DEFAULT_TERMS,
+      bank: DEFAULT_BANK,
+      fx: DEFAULT_FX,
+    }
   }
 })

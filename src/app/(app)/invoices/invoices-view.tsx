@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useApp } from '@/components/app-context'
 import { useLang, useT } from '@/components/lang-provider'
 import {
@@ -236,13 +236,24 @@ export function InvoicesView({
     })
   }
 
+  /*
+   * A new line is appended to the bottom of a list that is already taller than
+   * a phone screen, so pressing Add looked like it did nothing at all. The key
+   * is remembered here and the row scrolls itself into view once React has
+   * drawn it.
+   */
+  const [newLineKey, setNewLineKey] = useState<string | null>(null)
+
   const addLine = (line?: Partial<InvoiceItemInput>) =>
-    setDraft((d) => ({
+    setDraft((d) => {
+      const key = `n${Date.now()}${d.items.length}`
+      setNewLineKey(key)
+      return {
       ...d,
       items: [
         ...d.items,
         {
-          key: `n${Date.now()}${d.items.length}`,
+          key,
           description: line?.description ?? '',
           // A new line joins whatever heading the last one is under, so
           // building a section is one tap per line instead of two.
@@ -254,7 +265,21 @@ export function InvoicesView({
           refId: line?.refId ?? null,
         },
       ],
-    }))
+      }
+    })
+
+  const lineRefs = useRef(new Map<string, HTMLDivElement | null>())
+
+  useEffect(() => {
+    if (!newLineKey) return
+    const row = lineRefs.current.get(newLineKey)
+    if (!row) return
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // Focus the description: the keyboard comes up on the field you were
+    // reaching for anyway, and it confirms the row is really there.
+    row.querySelector<HTMLInputElement>('input[data-line-description]')?.focus()
+    setNewLineKey(null)
+  }, [newLineKey, draft.items.length])
 
   const updateLine = (key: string, patch: Partial<InvoiceItemInput>) =>
     setDraft((d) => ({
@@ -821,12 +846,32 @@ export function InvoicesView({
             </datalist>
 
             <div className="flex flex-col gap-2">
-              {draft.items.map((item) => (
-                <div key={item.key} className="rounded-[13px] border border-ink/10 p-2.5">
+              {draft.items.map((item, index) => (
+                <div
+                  key={item.key}
+                  ref={(el) => {
+                    lineRefs.current.set(item.key, el)
+                  }}
+                  className="rounded-[13px] border border-ink/10 p-2.5"
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="ob-ltr text-[11px] font-extrabold text-ink/35">
+                      {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(item.key)}
+                      disabled={draft.items.length === 1}
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-ink/12 disabled:opacity-30"
+                      aria-label={t('common.remove')}
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
                   {/* The heading this line prints under. Left blank the line
                       stays ungrouped, so plain invoices are unchanged. */}
                   <input
-                    className="ob-input mb-2 h-9 bg-ink/4 text-[12px] font-bold uppercase tracking-[0.5px]"
+                    className="ob-input mb-2 h-10 bg-ink/4 text-[12px] font-bold uppercase tracking-[0.5px]"
                     value={item.section ?? ''}
                     placeholder={t('inv.section')}
                     list="ob-invoice-sections"
@@ -835,7 +880,8 @@ export function InvoicesView({
                     }
                   />
                   <input
-                    className="ob-input mb-2 h-10"
+                    className="ob-input mb-2"
+                    data-line-description
                     value={item.description}
                     placeholder={t('inv.description')}
                     onChange={(e) => updateLine(item.key, { description: e.target.value })}
@@ -870,22 +916,23 @@ export function InvoicesView({
                       dir="ltr"
                       aria-label={t('inv.unitPrice')}
                     />
-                    <span className="ob-ltr w-20 text-end text-[12.5px] font-extrabold">
+                    <span className="ob-ltr flex-shrink-0 text-end text-[12.5px] font-extrabold">
                       {egp(item.qty * item.unitPrice)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(item.key)}
-                      disabled={draft.items.length === 1}
-                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-ink/12 disabled:opacity-30"
-                      aria-label={t('common.remove')}
-                    >
-                      <Icon name="trash" size={14} />
-                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
+            {/* The one at the top is out of sight by line three. */}
+            <button
+              type="button"
+              onClick={() => addLine()}
+              className="ob-btn ob-btn-ghost mt-2 h-12 w-full"
+            >
+              <Icon name="plus" size={16} />
+              {t('inv.addItem')}
+            </button>
           </div>
 
           <div className="flex gap-3">

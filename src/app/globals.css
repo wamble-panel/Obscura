@@ -75,6 +75,9 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* Pull-to-refresh reloads the page mid-edit and there is no undo for that.
+       The root has to say so too — body alone does not stop it on iOS. */
+    overscroll-behavior-y: none;
   }
 
   body {

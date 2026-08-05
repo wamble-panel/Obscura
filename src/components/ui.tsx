@@ -360,13 +360,30 @@ function Portal({ children }: { children: ReactNode }) {
   return createPortal(children, document.body)
 }
 
+/**
+ * Holds the page still while a dialog is open.
+ *
+ * `overflow: hidden` alone does not stop iOS pulling to refresh. A dialog's
+ * scroller sitting at its top passes the rest of a downward drag on to the
+ * document, and the page reloads — taking a half-typed invoice with it. The
+ * chain has to be cut at the root as well as inside the dialog.
+ */
 function useLockBody(open: boolean) {
   useEffect(() => {
     if (!open) return
-    const prev = document.body.style.overflow
+    const root = document.documentElement
+    const prev = {
+      overflow: document.body.style.overflow,
+      rootOverscroll: root.style.overscrollBehaviorY,
+      bodyOverscroll: document.body.style.overscrollBehaviorY,
+    }
     document.body.style.overflow = 'hidden'
+    root.style.overscrollBehaviorY = 'none'
+    document.body.style.overscrollBehaviorY = 'none'
     return () => {
-      document.body.style.overflow = prev
+      document.body.style.overflow = prev.overflow
+      root.style.overscrollBehaviorY = prev.rootOverscroll
+      document.body.style.overscrollBehaviorY = prev.bodyOverscroll
     }
   }, [open])
 }
@@ -443,7 +460,7 @@ export function Modal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-2">{children}</div>
 
         {footer && (
           <div className="flex flex-shrink-0 gap-2.5 border-t border-ink/8 bg-cream px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -501,7 +518,7 @@ export function Drawer({
             <Icon name="close" size={16} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">{children}</div>
         {footer && (
           <div className="flex flex-shrink-0 gap-2.5 border-t border-ink/8 bg-cream px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {footer}

@@ -1412,7 +1412,10 @@ begin
       'name', coalesce(studio->>'name', 'Obscura Studio'),
       'branch', coalesce(studio->>'branch', ''),
       'usd_rate', coalesce((studio->>'usd_rate')::numeric, 48)
-    )
+    ),
+    -- How to pay. The client is being asked for money, so the account details
+    -- have to travel with the link, not sit behind a login they do not have.
+    'bank', coalesce((select value from public.app_settings where key = 'bank'), '{}'::jsonb)
   ) into result;
 
   return result;

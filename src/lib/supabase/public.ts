@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import type { BankSettings } from '@/lib/types'
 
 /**
  * A cookie-free anon client for pages a client opens without signing in —
@@ -46,11 +47,47 @@ export type SharedInvoice = {
   payments?: { amount: number; method: string; paid_at: string }[]
   paid_amount?: number
   studio?: { name: string; branch: string; usd_rate: number }
+  bank?: Partial<BankSettings>
 }
 
 export async function fetchSharedInvoice(token: string): Promise<SharedInvoice | null> {
   const supabase = createPublicClient()
   const { data, error } = await supabase.rpc('invoice_by_share_token', { p_token: token })
   if (error || !data) return null
-  return data as SharedInvoice
+
+  const shared = data as SharedInvoice
+  if (!shared.bank) shared.bank = (await fetchPublicBank()) ?? undefined
+  return shared
+}
+
+/**
+ * The studio's payment details, for a client who has no account.
+ *
+ * Normally these come back inside invoice_by_share_token. On a database where
+ * that function predates them, they are read here instead — app_settings is
+ * readable only by signed-in staff, so this needs the service role. It is a
+ * deliberately narrow read of one row that is printed on the invoice anyway,
+ * and it returns nothing at all if the studio has switched the block off.
+ */
+async function fetchPublicBank(): Promise<Partial<BankSettings> | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) return null
+
+  try {
+    const admin = createSupabaseClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const { data } = await admin
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'bank')
+      .maybeSingle()
+
+    const bank = data?.value as Partial<BankSettings> | undefined
+    if (!bank || bank.show_on_invoice === false) return null
+    return bank
+  } catch {
+    return null
+  }
 }

@@ -314,6 +314,22 @@ export type StudioSettings = {
   auto_invoice: boolean
 }
 
+/**
+ * How the studio gets paid. Lives in app_settings, which is a jsonb column, so
+ * adding this needed no migration — the row is simply written.
+ */
+export type BankSettings = {
+  bank_name: string
+  account_name: string
+  account_number: string
+  iban: string
+  swift: string
+  /** Instapay handle, wallet number, anything else worth printing. */
+  extra: string
+  /** Whether to print any of it on invoices at all. */
+  show_on_invoice: boolean
+}
+
 export type TermsSection = {
   title: string
   items: string[]

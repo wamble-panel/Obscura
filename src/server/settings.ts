@@ -12,12 +12,19 @@ import {
   type CurrencyCode,
   type FxRates,
 } from '@/lib/currency'
-import type { ActionResult, PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
+import type {
+  ActionResult,
+  BankSettings,
+  PricingSettings,
+  StudioSettings,
+  TermsSettings,
+} from '@/lib/types'
 
 export async function saveSettings(input: {
   studio: StudioSettings
   pricing: PricingSettings
   terms?: TermsSettings
+  bank?: BankSettings
 }): Promise<ActionResult> {
   try {
     await assertPermission(PERMISSIONS.settingsEdit)
@@ -48,6 +55,25 @@ export async function saveSettings(input: {
           .filter((s) => s.title && s.items.length),
       }
       rows.push({ key: 'terms', value: terms, updated_at: now })
+    }
+
+    if (input.bank) {
+      // Bank details are pasted around; stray spaces at the ends of an IBAN
+      // are the single most common way one arrives wrong.
+      const trim = (v: string) => (v ?? '').trim()
+      rows.push({
+        key: 'bank',
+        value: {
+          bank_name: trim(input.bank.bank_name),
+          account_name: trim(input.bank.account_name),
+          account_number: trim(input.bank.account_number),
+          iban: trim(input.bank.iban).toUpperCase().replace(/\s+/g, ' '),
+          swift: trim(input.bank.swift).toUpperCase(),
+          extra: trim(input.bank.extra),
+          show_on_invoice: Boolean(input.bank.show_on_invoice),
+        },
+        updated_at: now,
+      })
     }
 
     const { error } = await supabase.from('app_settings').upsert(rows)

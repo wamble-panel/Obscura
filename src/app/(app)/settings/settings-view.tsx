@@ -17,18 +17,20 @@ import {
   type CurrencyCode,
   type FxRates,
 } from '@/lib/currency'
-import type { PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
+import type { BankSettings, PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
 
 export function SettingsView({
   studio: initialStudio,
   pricing: initialPricing,
   terms: initialTerms,
+  bank: initialBank,
   fx: initialFx,
   keepalive,
 }: {
   studio: StudioSettings
   pricing: PricingSettings
   terms: TermsSettings
+  bank: BankSettings
   fx: FxRates
   keepalive: { pinged_at: string | null; hits: number; source: string | null } | null
 }) {
@@ -42,6 +44,7 @@ export function SettingsView({
   const [studio, setStudio] = useState(initialStudio)
   const [pricing, setPricing] = useState(initialPricing)
   const [terms, setTerms] = useState(initialTerms)
+  const [bank, setBank] = useState(initialBank)
   const [fx, setFx] = useState(initialFx)
 
   const editable = can(PERMISSIONS.settingsEdit)
@@ -49,7 +52,7 @@ export function SettingsView({
   const submit = () => {
     setError(null)
     start(async () => {
-      const result = await saveSettings({ studio, pricing, terms })
+      const result = await saveSettings({ studio, pricing, terms, bank })
       if (result.ok) toast(t('settings.saved'))
       else setError(result.error ?? t('toast.error'))
     })
@@ -454,6 +457,95 @@ export function SettingsView({
                 value={terms.agree_line}
                 disabled={!editable}
                 onChange={(e) => setTerms((prev) => ({ ...prev, agree_line: e.target.value }))}
+              />
+            </Field>
+          </div>
+        </Card>
+
+        {/*
+          Payment details, printed at the foot of every invoice. Kept in
+          settings rather than typed per invoice — an account number retyped
+          each time is an account number that eventually goes out wrong.
+        */}
+        <Card>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-extrabold">{t('settings.bank')}</h2>
+              <p className="mt-0.5 text-[12.5px] font-medium text-ink/55">
+                {t('settings.bankSub')}
+              </p>
+            </div>
+            <label className="flex flex-shrink-0 items-center gap-2 text-[12px] font-bold text-ink/60">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[var(--color-ink)]"
+                checked={bank.show_on_invoice}
+                disabled={!editable}
+                onChange={(e) => setBank({ ...bank, show_on_invoice: e.target.checked })}
+              />
+              {t('settings.bankShow')}
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Field label={t('settings.bankName')} className="flex-1">
+                <input
+                  className="ob-input"
+                  value={bank.bank_name}
+                  disabled={!editable}
+                  placeholder="CIB"
+                  onChange={text(setBank, bank, 'bank_name')}
+                />
+              </Field>
+              <Field label={t('settings.bankAccountName')} className="flex-1">
+                <input
+                  className="ob-input"
+                  value={bank.account_name}
+                  disabled={!editable}
+                  onChange={text(setBank, bank, 'account_name')}
+                />
+              </Field>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Field label={t('settings.bankAccountNumber')} className="flex-1">
+                <input
+                  className="ob-input"
+                  value={bank.account_number}
+                  disabled={!editable}
+                  dir="ltr"
+                  inputMode="numeric"
+                  onChange={text(setBank, bank, 'account_number')}
+                />
+              </Field>
+              <Field label={t('settings.bankSwift')} className="sm:w-40">
+                <input
+                  className="ob-input"
+                  value={bank.swift}
+                  disabled={!editable}
+                  dir="ltr"
+                  placeholder="CIBEEGCX"
+                  onChange={text(setBank, bank, 'swift')}
+                />
+              </Field>
+            </div>
+            <Field label={t('settings.bankIban')}>
+              <input
+                className="ob-input"
+                value={bank.iban}
+                disabled={!editable}
+                dir="ltr"
+                placeholder="EG00 0000 0000 0000 0000 0000 000"
+                onChange={text(setBank, bank, 'iban')}
+              />
+            </Field>
+            <Field label={t('settings.bankExtra')} hint={t('settings.bankExtraHint')}>
+              <textarea
+                className="ob-input"
+                rows={2}
+                value={bank.extra}
+                disabled={!editable}
+                onChange={(e) => setBank({ ...bank, extra: e.target.value })}
               />
             </Field>
           </div>
