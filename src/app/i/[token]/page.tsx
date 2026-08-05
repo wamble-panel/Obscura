@@ -51,6 +51,20 @@ export default async function SharedInvoicePage({
   const invoice = data.invoice!
   const items = data.items ?? []
   const groups = groupInvoiceItems(items)
+  const bank = data.bank ?? {}
+  const bankLines = (
+    bank.show_on_invoice === false
+      ? []
+      : [
+          { label: 'Bank', value: bank.bank_name, ltr: false },
+          { label: 'Account name', value: bank.account_name, ltr: false },
+          { label: 'Account number', value: bank.account_number, ltr: true },
+          { label: 'IBAN', value: bank.iban, ltr: true },
+          { label: 'SWIFT / BIC', value: bank.swift, ltr: true },
+          { label: 'Also', value: bank.extra, ltr: false },
+        ]
+  ).filter((l) => (l.value ?? '').trim())
+
   const currency = toCurrencyCode(invoice.currency)
   const secondAmount =
     currency !== 'EGP' && invoice.currency_amount != null
@@ -259,6 +273,20 @@ export default async function SharedInvoicePage({
         )}
 
         <footer className="mt-10 border-t border-ink/12 pt-6">
+          {/* The client is being asked for money; tell them where to send it. */}
+          {bankLines.length > 0 && (
+            <div className="ob-no-break mb-4 rounded-[12px] bg-ink/4 px-4 py-3">
+              <div className="ob-label mb-1.5">Payment details</div>
+              <div className="flex flex-col gap-0.5">
+                {bankLines.map((line) => (
+                  <div key={line.label} className="flex gap-2 text-[12.5px] font-medium">
+                    <span className="w-[92px] flex-shrink-0 text-ink/45">{line.label}</span>
+                    <span className={`font-semibold ${line.ltr ? 'ob-ltr' : ''}`}>{line.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {invoice.notes && (
             <div className="mb-4">
               <div className="ob-label mb-1">Notes</div>
