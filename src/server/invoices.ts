@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'node:crypto'
 import { assertPermission, logEvent } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PERMISSIONS } from '@/lib/permissions'
@@ -45,6 +46,47 @@ export type InvoiceInput = {
   items: InvoiceItemInput[]
 }
 
+/**
+ * Writes a row, dropping any column the database does not have yet.
+ *
+ * Deploys and migrations do not land at the same moment, and the person who
+ * can push a deploy is not always the person who can run SQL. Rather than
+ * failing an invoice outright because `section` has not been added yet,
+ * PostgREST tells us exactly which column it did not recognise, so the write
+ * is retried without it. The invoice saves; it just saves without the parts
+ * the schema cannot hold yet, and picks them up once the schema catches up.
+ */
+const MISSING_COLUMN = /Could not find the '([^']+)' column/i
+
+function withoutColumn<T extends Record<string, unknown>>(row: T, column: string): T {
+  const next = { ...row }
+  delete next[column]
+  return next
+}
+
+async function writeTolerantly<T extends Record<string, unknown>, R>(
+  row: T,
+  attempt: (row: T) => PromiseLike<{ data: R | null; error: { message: string } | null }>,
+): Promise<{ data: R | null; error: { message: string } | null; dropped: string[] }> {
+  let current = row
+  const dropped: string[] = []
+
+  // One retry per optional column, and a hard stop so a persistent error can
+  // never spin here.
+  for (let i = 0; i < 6; i++) {
+    const result = await attempt(current)
+    if (!result.error) return { ...result, dropped }
+
+    const missing = MISSING_COLUMN.exec(result.error.message)?.[1]
+    if (!missing || !(missing in current)) return { ...result, dropped }
+
+    dropped.push(missing)
+    current = withoutColumn(current, missing)
+  }
+
+  return { data: null, error: { message: 'Too many unknown columns' }, dropped }
+}
+
 function touched(id?: string) {
   revalidatePath('/invoices')
   revalidatePath('/finance')
@@ -83,33 +125,73 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
     }
 
     let invoiceId = input.id
+    const dropped = new Set<string>()
 
     if (input.id) {
-      const { error } = await supabase.from('invoices').update(header).eq('id', input.id)
-      if (error) return { ok: false, error: error.message }
+      const result = await writeTolerantly(header, (row) =>
+        supabase.from('invoices').update(row).eq('id', input.id!),
+      )
+      if (result.error) return { ok: false, error: result.error.message }
+      result.dropped.forEach((c) => dropped.add(c))
       await supabase.from('invoice_items').delete().eq('invoice_id', input.id)
     } else {
-      const { data, error } = await supabase.from('invoices').insert(header).select('id').single()
-      if (error) return { ok: false, error: error.message }
-      invoiceId = data.id
+      const result = await writeTolerantly(header, (row) =>
+        supabase.from('invoices').insert(row).select('id').single(),
+      )
+      if (result.error) return { ok: false, error: result.error.message }
+      result.dropped.forEach((c) => dropped.add(c))
+      invoiceId = (result.data as unknown as { id: string } | null)?.id
     }
 
-    const { error: itemsError } = await supabase.from('invoice_items').insert(
-      items.map((item, index) => ({
-        invoice_id: invoiceId,
-        description: item.description.trim(),
-        section: item.section?.trim() || null,
-        detail: item.detail?.trim() || null,
-        qty: item.qty,
-        unit_price: item.unitPrice,
-        ref_type: item.refType || null,
-        ref_id: item.refId || null,
-        sort: index,
-      })),
+    // A single template row decides which columns exist; the rest follow it,
+    // so a long invoice is not twenty round trips of trial and error.
+    const template = {
+      invoice_id: invoiceId,
+      description: '',
+      section: null as string | null,
+      detail: null as string | null,
+      qty: 1,
+      unit_price: 0,
+      ref_type: null as string | null,
+      ref_id: null as string | null,
+      sort: 0,
+    }
+    const lineFor = (item: (typeof items)[number], index: number) => ({
+      ...template,
+      description: item.description.trim(),
+      section: item.section?.trim() || null,
+      detail: item.detail?.trim() || null,
+      qty: item.qty,
+      unit_price: item.unitPrice,
+      ref_type: item.refType || null,
+      ref_id: item.refId || null,
+      sort: index,
+    })
+
+    const probe = await writeTolerantly(lineFor(items[0], 0), (row) =>
+      supabase.from('invoice_items').insert(row),
     )
-    if (itemsError) return { ok: false, error: itemsError.message }
+    if (probe.error) return { ok: false, error: probe.error.message }
+    probe.dropped.forEach((c) => dropped.add(c))
+
+    if (items.length > 1) {
+      const rest = items.slice(1).map((item, i) => {
+        let row = lineFor(item, i + 1) as Record<string, unknown>
+        for (const column of probe.dropped) row = withoutColumn(row, column)
+        return row
+      })
+      const { error: itemsError } = await supabase.from('invoice_items').insert(rest)
+      if (itemsError) return { ok: false, error: itemsError.message }
+    }
 
     touched(invoiceId)
+    if (dropped.size) {
+      return {
+        ok: true,
+        id: invoiceId,
+        message: `Invoice saved. ${[...dropped].join(', ')} needs the latest schema.sql before it can be stored.`,
+      }
+    }
     return { ok: true, message: 'Invoice saved', id: invoiceId }
   } catch (err) {
     return { ok: false, error: (err as Error).message }
@@ -221,12 +303,53 @@ export async function shareInvoice(
     await assertPermission(PERMISSIONS.invoicesEdit)
     const supabase = await createClient()
 
-    const { data: token, error } = await supabase.rpc('enable_invoice_share', {
+    const { data: rpcToken, error } = await supabase.rpc('enable_invoice_share', {
       p_invoice: invoiceId,
       p_expires_at: options?.expiresAt ?? null,
       p_regenerate: options?.regenerate ?? false,
     })
-    if (error) return { ok: false, error: error.message }
+
+    let token = rpcToken as string | null
+
+    /*
+     * Older databases build the token with gen_random_bytes(), which lives in
+     * pgcrypto — installed by Supabase into the `extensions` schema, and so
+     * invisible to a function pinned to `search_path = public`. Sharing then
+     * fails with "function gen_random_bytes(integer) does not exist". The fix
+     * is in schema.sql, but nobody should be unable to send a client their
+     * invoice because a migration has not been run yet, so the token is minted
+     * here instead. Row-level security still decides whether this is allowed.
+     */
+    if (error) {
+      if (!/gen_random_bytes|does not exist/i.test(error.message)) {
+        return { ok: false, error: error.message }
+      }
+
+      const { data: existing } = await supabase
+        .from('invoices')
+        .select('share_token')
+        .eq('id', invoiceId)
+        .maybeSingle()
+
+      token =
+        options?.regenerate || !existing?.share_token
+          ? randomUUID().replace(/-/g, '')
+          : (existing.share_token as string)
+
+      const patch: Record<string, unknown> = {
+        share_token: token,
+        share_enabled: true,
+        share_expires_at: options?.expiresAt ?? null,
+      }
+      if (options?.regenerate) patch.share_views = 0
+
+      const written = await writeTolerantly(patch, (row) =>
+        supabase.from('invoices').update(row).eq('id', invoiceId),
+      )
+      if (written.error) return { ok: false, error: written.error.message }
+    }
+
+    if (!token) return { ok: false, error: 'Could not create a link for this invoice.' }
 
     const h = await headers()
     const origin =
@@ -243,7 +366,7 @@ export async function shareInvoice(
     })
 
     touched(invoiceId)
-    return { ok: true, message: 'Link ready', url: `${origin}/i/${token as string}` }
+    return { ok: true, message: 'Link ready', url: `${origin}/i/${token}` }
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }
