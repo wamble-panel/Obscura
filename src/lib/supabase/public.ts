@@ -33,6 +33,7 @@ export type SharedInvoice = {
     status: string
     currency: string
     currency_amount: number | null
+    show_bank: boolean | null
     notes: string | null
     terms: string | null
   }

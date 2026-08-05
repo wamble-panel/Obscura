@@ -39,6 +39,8 @@ export type InvoiceInput = {
    */
   currency?: CurrencyCode
   currencyAmount?: number | null
+  /** Null follows the studio default in Settings. */
+  showBank?: boolean | null
   discount: number
   taxRate: number
   notes?: string | null
@@ -114,6 +116,7 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       issue_date: input.issueDate || todayKey(),
       due_date: input.dueDate || addDays(input.issueDate || todayKey(), 14),
       currency: toCurrencyCode(input.currency),
+      show_bank: input.showBank ?? null,
       currency_amount:
         toCurrencyCode(input.currency) === 'EGP' || !input.currencyAmount
           ? null

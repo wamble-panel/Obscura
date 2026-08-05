@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { fetchSharedInvoice } from '@/lib/supabase/public'
 import { egp, formatDate } from '@/lib/format'
-import { groupInvoiceItems } from '@/lib/invoice-sections'
+import { groupInvoiceItems, showsBankDetails } from '@/lib/invoice-sections'
 import { money, toCurrencyCode } from '@/lib/currency'
 import { Icon } from '@/components/icons'
 import { PrintButton } from './print-button'
@@ -53,7 +53,7 @@ export default async function SharedInvoicePage({
   const groups = groupInvoiceItems(items)
   const bank = data.bank ?? {}
   const bankLines = (
-    bank.show_on_invoice === false
+    !showsBankDetails(invoice.show_bank, bank.show_on_invoice)
       ? []
       : [
           { label: 'Bank', value: bank.bank_name, ltr: false },
