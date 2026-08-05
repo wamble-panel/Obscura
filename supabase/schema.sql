@@ -980,6 +980,13 @@ exception when duplicate_object then null; end $$;
 
 -- An earlier version derived the foreign figure from a stored rate. It is gone:
 -- the number on the invoice is the one that was typed, and nothing else.
+--
+-- v_invoice_balance selects invoices.*, which Postgres expands into a fixed
+-- list of columns when the view is created. On a database where that happened
+-- after fx_rate existed, the view holds a hard dependency on it and the drop
+-- fails. The view is rebuilt further down this file, so taking it out of the
+-- way here costs nothing.
+drop view if exists public.v_invoice_balance cascade;
 alter table public.invoices drop column if exists fx_rate;
 drop trigger if exists invoices_stamp_fx on public.invoices;
 drop function if exists public.stamp_invoice_fx();
