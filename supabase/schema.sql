@@ -1331,7 +1331,12 @@ begin
 
   select share_token into v_token from public.invoices where id = p_invoice;
   if v_token is null or p_regenerate then
-    v_token := encode(gen_random_bytes(16), 'hex');
+    -- gen_random_bytes() belongs to pgcrypto, which Supabase installs into the
+    -- `extensions` schema — invisible to a function pinned to `search_path =
+    -- public`, so sharing an invoice failed with "function does not exist".
+    -- gen_random_uuid() is core Postgres, always on the path, and its 122
+    -- random bits make a 32-character token no one is going to guess.
+    v_token := replace(gen_random_uuid()::text, '-', '');
   end if;
 
   update public.invoices

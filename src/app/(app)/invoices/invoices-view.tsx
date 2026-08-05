@@ -973,7 +973,7 @@ export function InvoicesView({
               onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
             />
           </Field>
-          <Field label={t('inv.terms')} hint={t('inv.termsDefault')}>
+          <Field label={t('inv.terms')} hint={t('common.optional')}>
             <input
               className="ob-input"
               value={draft.terms}

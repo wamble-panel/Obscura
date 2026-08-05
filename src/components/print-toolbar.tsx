@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Icon } from './icons'
+import { printOnePage } from '@/lib/print-sheet'
 
 /** Sticky controls that never appear on the printed page. */
 export function PrintToolbar({ title, backHref }: { title: string; backHref: string }) {
@@ -18,9 +19,9 @@ export function PrintToolbar({ title, backHref }: { title: string; backHref: str
           <Icon name="chevronLeft" size={16} className="rtl:rotate-180" />
           {title}
         </button>
-        <button type="button" onClick={() => window.print()} className="ob-btn ob-btn-primary h-10">
+        <button type="button" onClick={() => printOnePage()} className="ob-btn ob-btn-primary h-10">
           <Icon name="download" size={15} />
-          Print / Save as PDF
+          Download PDF
         </button>
       </div>
     </div>
