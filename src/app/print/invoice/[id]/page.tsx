@@ -11,6 +11,7 @@ import { egp, formatDate } from '@/lib/format'
 import { groupInvoiceItems, showsBankDetails } from '@/lib/invoice-sections'
 import { money, toCurrencyCode } from '@/lib/currency'
 import { PrintToolbar } from '@/components/print-toolbar'
+import { InvoiceDownload } from '@/components/invoice-download'
 import type { InvoiceBalance, InvoiceItem, Payment } from '@/lib/types'
 
 export const metadata: Metadata = { title: 'Invoice' }
@@ -68,7 +69,58 @@ export default async function InvoicePrintPage({
 
   return (
     <>
-      <PrintToolbar title={t('inv.title')} backHref="/invoices" />
+      <PrintToolbar
+        title={t('inv.title')}
+        backHref="/invoices"
+        action={
+          <InvoiceDownload
+            filename={`${invoice.number}.pdf`}
+            payload={{
+              invoice: {
+                number: invoice.number,
+                status: statusLabel,
+                client_name: invoice.client_name,
+                client_company: invoice.client_company,
+                client_address: invoice.client_address,
+                client_phone: invoice.client_phone,
+                client_email: invoice.client_email,
+                issue_date: invoice.issue_date,
+                due_date: invoice.due_date,
+                subtotal: Number(invoice.subtotal),
+                discount: Number(invoice.discount),
+                tax_rate: Number(invoice.tax_rate),
+                tax_amount: Number(invoice.tax_amount),
+                total: Number(invoice.total),
+                second_amount: secondAmount,
+                notes: invoice.notes,
+                terms: invoice.terms,
+                paid_amount: Number(invoice.paid_amount),
+                balance: Number(invoice.balance),
+              },
+              items: items.map((i) => ({
+                description: i.description,
+                section: i.section,
+                detail: i.detail,
+                qty: Number(i.qty),
+                unit_price: Number(i.unit_price),
+                amount: Number(i.amount),
+              })),
+              studio: {
+                name: studio.name,
+                branch: studio.branch,
+                phone: studio.phone,
+                instagram: studio.instagram,
+              },
+              bank: bankLines.map((b) => ({ label: b.label, value: String(b.value) })),
+              payments: payments.map((p) => ({
+                paid_at: p.paid_at,
+                method: p.method,
+                amount: Number(p.amount),
+              })),
+            }}
+          />
+        }
+      />
 
       <article className="ob-sheet mx-auto my-6 max-w-[820px] bg-paper p-8 shadow-card print:my-0 sm:p-12">
         {/* ---------------- header ---------------- */}
