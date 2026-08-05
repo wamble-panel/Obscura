@@ -1732,6 +1732,19 @@ select public.apply_crud_policies('ledger_entries', 'finance');
 select public.apply_crud_policies('invoices',      'invoices');
 select public.apply_crud_policies('invoice_items', 'invoices');
 
+/*
+ * Rewriting an invoice's lines is editing the invoice, not deleting one.
+ *
+ * The generic rule gives every table's delete to `<module>.delete`, which for
+ * invoice_items meant taking a line off an invoice required permission to
+ * delete whole invoices. Row-level security refuses a delete silently — it
+ * matches nothing rather than raising — so the line simply stayed, and the
+ * save reported success. `invoices.delete` still governs deleting an invoice.
+ */
+drop policy if exists invoice_items_delete on public.invoice_items;
+create policy invoice_items_delete on public.invoice_items for delete to authenticated
+  using (public.has_perm('invoices.edit'));
+
 -- payments: seen with invoices.view, recorded with invoices.pay
 drop policy if exists payments_select on public.payments;
 drop policy if exists payments_insert on public.payments;
