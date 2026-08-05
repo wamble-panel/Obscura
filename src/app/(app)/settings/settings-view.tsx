@@ -8,18 +8,28 @@ import { Card, Field, PageHeader, SubmitButton, useToast } from '@/components/ui
 import { Icon } from '@/components/icons'
 import { PERMISSIONS } from '@/lib/permissions'
 import { timeAgo } from '@/lib/format'
-import { pingDatabase, saveSettings } from '@/server/settings'
+import { pingDatabase, refreshRates, saveSettings, setRate } from '@/server/settings'
+import {
+  CURRENCIES,
+  FOREIGN_CODES,
+  normalizeFx,
+  rateFor,
+  type CurrencyCode,
+  type FxRates,
+} from '@/lib/currency'
 import type { PricingSettings, StudioSettings, TermsSettings } from '@/lib/types'
 
 export function SettingsView({
   studio: initialStudio,
   pricing: initialPricing,
   terms: initialTerms,
+  fx: initialFx,
   keepalive,
 }: {
   studio: StudioSettings
   pricing: PricingSettings
   terms: TermsSettings
+  fx: FxRates
   keepalive: { pinged_at: string | null; hits: number; source: string | null } | null
 }) {
   const t = useT()
@@ -32,6 +42,7 @@ export function SettingsView({
   const [studio, setStudio] = useState(initialStudio)
   const [pricing, setPricing] = useState(initialPricing)
   const [terms, setTerms] = useState(initialTerms)
+  const [fx, setFx] = useState(initialFx)
 
   const editable = can(PERMISSIONS.settingsEdit)
 
@@ -43,6 +54,25 @@ export function SettingsView({
       else setError(result.error ?? t('toast.error'))
     })
   }
+
+  const pullRates = () =>
+    start(async () => {
+      const result = await refreshRates()
+      toast(
+        result.ok ? (result.message ?? t('toast.saved')) : (result.error ?? t('toast.error')),
+        result.ok ? 'ok' : 'error',
+      )
+    })
+
+  const saveRate = (code: CurrencyCode, value: number) =>
+    start(async () => {
+      const result = await setRate(code, value)
+      toast(
+        result.ok ? (result.message ?? t('toast.saved')) : (result.error ?? t('toast.error')),
+        result.ok ? 'ok' : 'error',
+      )
+      if (!result.ok) setFx(initialFx)
+    })
 
   const ping = () =>
     start(async () => {
@@ -117,17 +147,7 @@ export function SettingsView({
                   dir="ltr"
                 />
               </Field>
-              <Field label={t('settings.usdRate')} className="flex-1">
-                <input
-                  className="ob-input"
-                  type="number"
-                  inputMode="decimal"
-                  value={studio.usd_rate}
-                  disabled={!editable}
-                  onChange={num(setStudio, studio, 'usd_rate')}
-                  dir="ltr"
-                />
-              </Field>
+
             </div>
             <div className="flex gap-3">
               <Field label={t('common.phone')} className="flex-1">
@@ -437,6 +457,79 @@ export function SettingsView({
               />
             </Field>
           </div>
+        </Card>
+
+        {/*
+          Exchange rates. Cron refreshes them daily; this is where to check
+          what they are, pull them now, or pin one by hand when the studio has
+          agreed a fixed rate with a client.
+        */}
+        <Card>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-extrabold">{t('inv.rates')}</h2>
+              <p className="mt-0.5 text-[12.5px] font-medium text-ink/55">{t('inv.ratesSub')}</p>
+            </div>
+            {editable && (
+              <SubmitButton
+                type="button"
+                onClick={pullRates}
+                pending={pending}
+                className="ob-btn-ghost h-9 flex-shrink-0 px-3 text-[12px]"
+              >
+                {t('inv.refreshRates')}
+              </SubmitButton>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {FOREIGN_CODES.map((code) => (
+              <div
+                key={code}
+                className="flex items-center gap-3 rounded-[13px] border border-ink/10 px-3.5 py-2.5"
+              >
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-ink/7 text-[14px] font-extrabold">
+                  <span className="ob-ltr">{CURRENCIES[code].symbol}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="ob-ltr block text-[13px] font-extrabold">1 {code}</span>
+                  <span className="block truncate text-[11.5px] font-semibold text-ink/45">
+                    {CURRENCIES[code][lang === 'ar' ? 'ar' : 'en']}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="ob-ltr text-[12.5px] font-bold text-ink/40">E£</span>
+                  <input
+                    className="ob-input h-9 w-24 text-end"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={rateFor(code, fx)}
+                    disabled={!editable}
+                    dir="ltr"
+                    onChange={(e) =>
+                      setFx((prev) =>
+                        normalizeFx({
+                          ...prev,
+                          rates: { ...prev.rates, [code]: Number(e.target.value) || 0 },
+                        }),
+                      )
+                    }
+                    onBlur={(e) => {
+                      const value = Number(e.target.value)
+                      if (value > 0 && value !== rateFor(code, initialFx)) saveRate(code, value)
+                    }}
+                  />
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3 text-[11.5px] font-semibold text-ink/40">
+            {fx.fetched_at
+              ? `${t('common.updated')} ${timeAgo(fx.fetched_at, lang)} · ${t('inv.ratesFrom')} ${fx.source}`
+              : t('inv.ratesNever')}
+          </p>
         </Card>
 
         <Card>

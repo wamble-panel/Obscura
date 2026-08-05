@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   await requirePermission(PERMISSIONS.settingsView)
 
-  const { studio, pricing, terms } = await getSettings()
+  const { studio, pricing, terms, fx } = await getSettings()
   const supabase = await createClient()
   const { data: keepalive } = await supabase
     .from('keepalive')
@@ -19,5 +19,13 @@ export default async function SettingsPage() {
     .eq('id', 1)
     .maybeSingle()
 
-  return <SettingsView studio={studio} pricing={pricing} terms={terms} keepalive={keepalive ?? null} />
+  return (
+    <SettingsView
+      studio={studio}
+      pricing={pricing}
+      terms={terms}
+      fx={fx}
+      keepalive={keepalive ?? null}
+    />
+  )
 }

@@ -255,6 +255,38 @@ by hand. If the dot turns red, the crons have stopped and it needs a look.
 
 ---
 
+## Currencies and exchange rates
+
+Everything the studio earns and spends is in Egyptian pounds, and that does not
+change: every amount in the database is EGP. What an invoice can do is show a
+**second currency alongside** — pick USD or EUR when writing it and the client
+sees both figures.
+
+The rate used is **frozen onto the invoice** the moment it is written. A printed
+copy and the one on screen must still agree next month, when the market has
+moved, so refreshing the rates never rewrites an invoice that already exists.
+
+Rates come from three free sources, no API key needed, tried in order until one
+answers: `open.er-api.com`, then the `currency-api` mirrors on jsDelivr and
+Cloudflare Pages. A rate outside a believable band is discarded rather than
+stored — a bad number here would be printed on a document a client keeps.
+
+- **Vercel Cron** calls `/api/fx` daily at 05:00 UTC (`vercel.json`). It needs
+  `SUPABASE_SERVICE_ROLE_KEY` to store what it finds; without it the endpoint
+  still reports the rates it fetched, but saves nothing.
+- **Settings → Exchange rates** shows the current numbers, when they were last
+  pulled and from where, with a **Refresh rates** button for when the pound has
+  just moved and an invoice is about to go out. You can also type a rate in by
+  hand, for a rate agreed with a client.
+- If every source is unreachable, the stored rates are left alone. Stale numbers
+  beat none.
+
+To add another currency, add it to `CURRENCIES` in `src/lib/currency.ts`, give it
+a plausible band in `src/lib/fx-fetch.ts`, and add it to the `currency` check
+constraint on `invoices` in `supabase/schema.sql`.
+
+---
+
 ## Working on it locally
 
 ```bash

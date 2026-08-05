@@ -30,6 +30,8 @@ export type SharedInvoice = {
     tax_amount: number
     total: number
     status: string
+    currency: string
+    fx_rate: number
     notes: string | null
     terms: string | null
   }

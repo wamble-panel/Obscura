@@ -26,6 +26,15 @@ import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, egp, formatDate, todayKey } from '@/lib/format'
 import { groupInvoiceItems } from '@/lib/invoice-sections'
 import {
+  CURRENCIES,
+  CURRENCY_CODES,
+  convert,
+  rateFor,
+  rateLine,
+  toCurrencyCode,
+  type CurrencyCode,
+} from '@/lib/currency'
+import {
   deleteInvoice,
   recordPayment,
   saveInvoice,
@@ -57,6 +66,7 @@ type Draft = {
   clientAddress: string
   issueDate: string
   dueDate: string
+  currency: CurrencyCode
   discount: number
   taxRate: number
   notes: string
@@ -73,6 +83,7 @@ const emptyDraft = (): Draft => ({
   clientAddress: '',
   issueDate: todayKey(),
   dueDate: addDays(todayKey(), 14),
+  currency: 'EGP',
   discount: 0,
   taxRate: 0,
   notes: '',
@@ -92,7 +103,7 @@ export function InvoicesView({
   const t = useT()
   const { lang } = useLang()
   const toast = useToast()
-  const { can } = useApp()
+  const { can, settings } = useApp()
   const [pending, start] = useTransition()
 
   const [query, setQuery] = useState('')
@@ -183,6 +194,7 @@ export function InvoicesView({
         clientAddress: invoice.client_address ?? '',
         issueDate: invoice.issue_date,
         dueDate: invoice.due_date ?? addDays(invoice.issue_date, 14),
+        currency: toCurrencyCode(invoice.currency),
         discount: Number(invoice.discount),
         taxRate: Number(invoice.tax_rate),
         notes: invoice.notes ?? '',
@@ -254,6 +266,8 @@ export function InvoicesView({
     ((Math.max(draftSubtotal - draft.discount, 0) * draft.taxRate) / 100) * 100,
   ) / 100
   const draftTotal = Math.max(draftSubtotal - draft.discount, 0) + draftTax
+  // Today's rate while editing. Once saved, the invoice keeps its own.
+  const draftRate = rateFor(draft.currency, settings.fx)
 
   const submitInvoice = () => {
     setError(null)
@@ -268,6 +282,7 @@ export function InvoicesView({
         clientAddress: draft.clientAddress,
         issueDate: draft.issueDate,
         dueDate: draft.dueDate,
+        currency: draft.currency,
         discount: draft.discount,
         taxRate: draft.taxRate,
         notes: draft.notes,
@@ -543,10 +558,23 @@ export function InvoicesView({
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between rounded-[15px] bg-ink px-4 py-4 text-sand">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-[15px] bg-ink px-4 py-4 text-sand">
               <span className="text-[13.5px] font-bold">{t('inv.total')}</span>
-              <b className="ob-ltr text-[18px]">{egp(detail.total)}</b>
+              <span className="text-end">
+                <b className="ob-ltr block text-[18px]">{egp(detail.total)}</b>
+                {/* The rate this invoice was written at, not today's. */}
+                {toCurrencyCode(detail.currency) !== 'EGP' && (
+                  <span className="ob-ltr block text-[11.5px] font-bold opacity-75">
+                    {convert(detail.total, toCurrencyCode(detail.currency), Number(detail.fx_rate) || 1)}
+                  </span>
+                )}
+              </span>
             </div>
+            {toCurrencyCode(detail.currency) !== 'EGP' && (
+              <p className="ob-ltr mt-1.5 text-end text-[11px] font-semibold text-ink/40">
+                {rateLine(toCurrencyCode(detail.currency), Number(detail.fx_rate) || 1)}
+              </p>
+            )}
 
             {Number(detail.paid_amount) > 0 && (
               <div className="mt-2 flex items-center justify-between rounded-[14px] bg-moss/8 px-4 py-3">
@@ -889,15 +917,52 @@ export function InvoicesView({
             </Field>
           </div>
 
+          {/*
+            The invoice is always in pounds. This picks a second currency to
+            print beside them, at today's rate — which is stored on the invoice
+            when it saves, so the figure never moves afterwards.
+          */}
+          <Field label={t('inv.currency')} hint={t('inv.currencyHint')}>
+            <div className="flex gap-1.5">
+              {CURRENCY_CODES.map((code) => {
+                const on = draft.currency === code
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setDraft((d) => ({ ...d, currency: code }))}
+                    data-on={on}
+                    className="ob-chip h-10 flex-1 justify-center text-[12.5px]"
+                  >
+                    <span className="ob-ltr font-extrabold">{CURRENCIES[code].symbol}</span>
+                    <span className="ob-ltr">{code}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </Field>
+
           <div className="rounded-[14px] bg-ink/6 px-4 py-3.5">
             <SummaryRow label={t('inv.subtotal')} value={egp(draftSubtotal)} />
             {draft.taxRate > 0 && (
               <SummaryRow label={`${t('inv.tax')} ${draft.taxRate}%`} value={egp(draftTax)} />
             )}
-            <div className="mt-1 flex items-center justify-between border-t border-ink/10 pt-2.5">
+            <div className="mt-1 flex items-center justify-between gap-3 border-t border-ink/10 pt-2.5">
               <span className="text-[13px] font-extrabold">{t('inv.total')}</span>
-              <b className="ob-ltr text-[17px]">{egp(draftTotal)}</b>
+              <span className="text-end">
+                <b className="ob-ltr block text-[17px]">{egp(draftTotal)}</b>
+                {draft.currency !== 'EGP' && (
+                  <span className="ob-ltr block text-[12px] font-bold text-ink/55">
+                    {convert(draftTotal, draft.currency, draftRate)}
+                  </span>
+                )}
+              </span>
             </div>
+            {draft.currency !== 'EGP' && (
+              <p className="ob-ltr mt-1.5 text-[11px] font-semibold text-ink/40">
+                {rateLine(draft.currency, draftRate)}
+              </p>
+            )}
           </div>
 
           <Field label={t('common.notes')} hint={t('common.optional')}>

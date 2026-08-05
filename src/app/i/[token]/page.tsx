@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { fetchSharedInvoice } from '@/lib/supabase/public'
 import { egp, formatDate, usd } from '@/lib/format'
 import { groupInvoiceItems } from '@/lib/invoice-sections'
+import { convert, rateLine, toCurrencyCode } from '@/lib/currency'
 import { Icon } from '@/components/icons'
 import { PrintButton } from './print-button'
 
@@ -50,6 +51,8 @@ export default async function SharedInvoicePage({
   const invoice = data.invoice!
   const items = data.items ?? []
   const groups = groupInvoiceItems(items)
+  const currency = toCurrencyCode(invoice.currency)
+  const fxRate = Number(invoice.fx_rate) || 1
   const payments = data.payments ?? []
   const studio = data.studio ?? { name: 'Obscura Studio', branch: '', usd_rate: 48 }
   const paid = Number(data.paid_amount ?? 0)
@@ -205,15 +208,23 @@ export default async function SharedInvoicePage({
               <SumRow label={`Tax ${invoice.tax_rate}%`} value={egp(invoice.tax_amount)} />
             )}
 
-            <div className="mt-2 flex items-center justify-between rounded-[13px] bg-ink px-4 py-3.5 text-sand">
+            <div className="mt-2 flex items-center justify-between gap-3 rounded-[13px] bg-ink px-4 py-3.5 text-sand">
               <span className="text-[13px] font-bold">Total</span>
               <span className="text-end">
-                <b className="ob-ltr text-[19px]">{egp(invoice.total)}</b>
-                <span className="ob-ltr ms-1.5 text-[11px] opacity-70">
-                  {usd(invoice.total, studio.usd_rate)}
+                <b className="ob-ltr block text-[19px]">{egp(invoice.total)}</b>
+                <span className="ob-ltr block text-[12px] font-bold opacity-75">
+                  {currency === 'EGP'
+                    ? usd(invoice.total, studio.usd_rate)
+                    : convert(invoice.total, currency, fxRate)}
                 </span>
               </span>
             </div>
+
+            {currency !== 'EGP' && (
+              <p className="ob-ltr mt-1.5 text-end text-[10.5px] font-semibold text-ink/45">
+                {rateLine(currency, fxRate)}
+              </p>
+            )}
 
             {paid > 0 && (
               <>

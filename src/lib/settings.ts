@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { createClient } from './supabase/server'
 import { DEFAULT_PRICING } from './format'
+import { DEFAULT_FX, normalizeFx, rateFor, type FxRates } from './currency'
 import type { PricingSettings, StudioSettings, TermsSettings } from './types'
 
 export const DEFAULT_STUDIO: StudioSettings = {
@@ -63,6 +64,7 @@ export type AppSettings = {
   studio: StudioSettings
   pricing: PricingSettings
   terms: TermsSettings
+  fx: FxRates
 }
 
 /** Studio configuration, cached for the life of the request. */
@@ -72,13 +74,22 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     const { data } = await supabase.from('app_settings').select('key, value')
 
     const map = new Map((data ?? []).map((row) => [row.key as string, row.value]))
+    const fx = normalizeFx(map.get('fx'))
+    const studio = { ...DEFAULT_STUDIO, ...((map.get('studio') as Partial<StudioSettings>) ?? {}) }
+
+    // Everywhere that already shows a dollar figure reads `studio.usd_rate`.
+    // Pointing it at the live table makes all of them current at once, and
+    // leaves one place — the rates panel — where the number is set.
+    studio.usd_rate = rateFor('USD', fx)
+
     return {
-      studio: { ...DEFAULT_STUDIO, ...((map.get('studio') as Partial<StudioSettings>) ?? {}) },
+      studio,
       pricing: { ...DEFAULT_PRICING, ...((map.get('pricing') as Partial<PricingSettings>) ?? {}) },
       terms: { ...DEFAULT_TERMS, ...((map.get('terms') as Partial<TermsSettings>) ?? {}) },
+      fx,
     }
   } catch {
     // Settings are never worth failing a page over.
-    return { studio: DEFAULT_STUDIO, pricing: DEFAULT_PRICING, terms: DEFAULT_TERMS }
+    return { studio: DEFAULT_STUDIO, pricing: DEFAULT_PRICING, terms: DEFAULT_TERMS, fx: DEFAULT_FX }
   }
 })
