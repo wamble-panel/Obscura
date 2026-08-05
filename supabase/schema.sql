@@ -952,9 +952,14 @@ create table if not exists public.invoices (
   -- the client sees, and the rate that was true the day the invoice was
   -- written. Freezing the rate is the whole point: a printed invoice and the
   -- copy on screen must still agree next month, when the market has moved.
-  currency       text not null default 'EGP'
-                 check (currency in ('EGP', 'USD', 'EUR')),
-  fx_rate        numeric(14,4) not null default 1 check (fx_rate > 0),
+  -- Presented in. The amounts above stay in EGP; this is the second currency
+  -- the client sees, and `currency_amount` is what to print in it — typed by
+  -- whoever writes the invoice, never worked out from a rate. A studio quotes
+  -- a round $500, not $452.58, and an amount nobody chose is one nobody can
+  -- defend when the client queries it.
+  currency        text not null default 'EGP'
+                  check (currency in ('EGP', 'USD', 'EUR')),
+  currency_amount numeric(14,2) check (currency_amount >= 0),
   notes          text,
   terms          text,
   created_by     uuid references public.profiles(id),
@@ -963,14 +968,21 @@ create table if not exists public.invoices (
 );
 -- Older databases predate presenting an invoice in a second currency.
 alter table public.invoices add column if not exists currency text not null default 'EGP';
-alter table public.invoices add column if not exists fx_rate numeric(14,4) not null default 1;
+alter table public.invoices add column if not exists currency_amount numeric(14,2);
 do $$ begin
   alter table public.invoices
     add constraint invoices_currency_check check (currency in ('EGP', 'USD', 'EUR'));
 exception when duplicate_object then null; end $$;
 do $$ begin
-  alter table public.invoices add constraint invoices_fx_rate_check check (fx_rate > 0);
+  alter table public.invoices
+    add constraint invoices_currency_amount_check check (currency_amount >= 0);
 exception when duplicate_object then null; end $$;
+
+-- An earlier version derived the foreign figure from a stored rate. It is gone:
+-- the number on the invoice is the one that was typed, and nothing else.
+alter table public.invoices drop column if exists fx_rate;
+drop trigger if exists invoices_stamp_fx on public.invoices;
+drop function if exists public.stamp_invoice_fx();
 
 create index if not exists invoices_client_idx on public.invoices(client_id);
 create index if not exists invoices_status_idx on public.invoices(status);
@@ -1024,48 +1036,6 @@ create table if not exists public.payments (
 create index if not exists payments_invoice_idx on public.payments(invoice_id);
 create index if not exists payments_client_idx  on public.payments(client_id);
 create index if not exists payments_date_idx    on public.payments(paid_at desc);
-
-/*
- * Stamps the day's exchange rate onto an invoice.
- *
- * Whoever writes the invoice — the editor, the automatic one raised from a
- * finished booking, or a script — should not have to remember to look the rate
- * up. Picking a currency is enough; the rate that was true at that moment is
- * captured here and then left alone, so reprinting the invoice next month
- * shows the same figure the client agreed to.
- */
-create or replace function public.stamp_invoice_fx()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare v_rate numeric;
-begin
-  if new.currency is null or new.currency = 'EGP' then
-    new.currency := 'EGP';
-    new.fx_rate  := 1;
-    return new;
-  end if;
-
-  -- Only reach for a fresh rate when there isn't a deliberate one already:
-  -- on insert without a rate, or when the currency itself has just changed.
-  if tg_op = 'INSERT' and new.fx_rate is distinct from 1 then return new; end if;
-  if tg_op = 'UPDATE'
-     and new.currency = old.currency
-     and new.fx_rate is distinct from old.fx_rate then
-    return new;
-  end if;
-  if tg_op = 'UPDATE' and new.currency = old.currency then return new; end if;
-
-  select (value->'rates'->>new.currency)::numeric into v_rate
-    from public.app_settings where key = 'fx';
-
-  if v_rate is not null and v_rate > 0 then
-    new.fx_rate := v_rate;
-  end if;
-  return new;
-end $$;
-
-drop trigger if exists invoices_stamp_fx on public.invoices;
-create trigger invoices_stamp_fx before insert or update on public.invoices
-  for each row execute function public.stamp_invoice_fx();
 
 -- Totals are derived from the line items, never from the browser.
 create or replace function public.recalc_invoice(p_invoice uuid)
@@ -1417,7 +1387,7 @@ begin
       'total', inv.total,
       'status', inv.status,
       'currency', inv.currency,
-      'fx_rate', inv.fx_rate,
+      'currency_amount', inv.currency_amount,
       'notes', inv.notes,
       'terms', inv.terms
     ),

@@ -132,7 +132,7 @@ export async function refreshRates(): Promise<ActionResult> {
     })
 
     const shown = CURRENCY_CODES.filter((c) => c !== 'EGP')
-      .map((c) => `1 ${c} = E£${rateFor(c, result.fx).toFixed(2)}`)
+      .map((c) => `1 ${c} = EGP ${rateFor(c, result.fx).toFixed(2)}`)
       .join(' · ')
 
     return { ok: true, message: shown }
@@ -161,10 +161,10 @@ export async function setRate(code: CurrencyCode, rate: number): Promise<ActionR
     await logEvent({
       action: 'settings.rates',
       entity: 'app_settings',
-      summary: `Set 1 ${code} to E£${rate} by hand`,
+      summary: `Set 1 ${code} to EGP ${rate} by hand`,
     })
 
-    return { ok: true, message: `1 ${code} = E£${rate}` }
+    return { ok: true, message: `1 ${code} = EGP ${rate}` }
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }

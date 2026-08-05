@@ -31,7 +31,7 @@ export type SharedInvoice = {
     total: number
     status: string
     currency: string
-    fx_rate: number
+    currency_amount: number | null
     notes: string | null
     terms: string | null
   }

@@ -7,9 +7,13 @@
  * invoice can be presented in dollars or euros without the ledger, the
  * pricing or the finance page having to know about it.
  *
+ * The figure printed in that currency is **typed on the invoice**, not worked
+ * out from a rate. Rates live here only to fill the box on request, as a
+ * starting point somebody then edits. Nothing a client sees is calculated.
+ *
  * A rate is always **EGP for one unit of the foreign currency**, which is how
- * the rate is quoted in Cairo and matches the `usd_rate: 48` that was here
- * before. One unit of EGP costs one EGP, so its rate is 1.
+ * it is quoted in Cairo and matches the `usd_rate: 48` that was here before.
+ * One unit of EGP costs one EGP, so its rate is 1.
  */
 
 export type CurrencyCode = 'EGP' | 'USD' | 'EUR'
@@ -21,12 +25,16 @@ export type Currency = {
   ar: string
   /** Pounds are shown whole; a hundred-times-larger unit needs its cents. */
   decimals: number
+  /** A word needs air before the digits; a glyph does not. */
+  spaced: boolean
 }
 
 export const CURRENCIES: Record<CurrencyCode, Currency> = {
-  EGP: { code: 'EGP', symbol: 'E£', en: 'Egyptian pound', ar: 'جنيه مصري', decimals: 0 },
-  USD: { code: 'USD', symbol: '$', en: 'US dollar', ar: 'دولار أمريكي', decimals: 2 },
-  EUR: { code: 'EUR', symbol: '€', en: 'Euro', ar: 'يورو', decimals: 2 },
+  // Written out rather than as E£: the glyph is easy to misread as a euro or a
+  // sterling amount on a document that already carries dollars and euros.
+  EGP: { code: 'EGP', symbol: 'EGP', en: 'Egyptian pound', ar: 'جنيه مصري', decimals: 0, spaced: true },
+  USD: { code: 'USD', symbol: '$', en: 'US dollar', ar: 'دولار أمريكي', decimals: 2, spaced: false },
+  EUR: { code: 'EUR', symbol: '€', en: 'Euro', ar: 'يورو', decimals: 2, spaced: false },
 }
 
 export const CURRENCY_CODES = Object.keys(CURRENCIES) as CurrencyCode[]
@@ -104,7 +112,12 @@ export function money(amount: number | null | undefined, code: CurrencyCode = 'E
   const currency = CURRENCIES[code] ?? CURRENCIES.EGP
   const value = Number(amount ?? 0)
   // A real minus sign, not a hyphen — it lines up with the digits.
-  return (value < 0 ? '−' : '') + currency.symbol + group(Math.abs(value), currency.decimals)
+  return (
+    (value < 0 ? '−' : '') +
+    currency.symbol +
+    (currency.spaced ? ' ' : '') +
+    group(Math.abs(value), currency.decimals)
+  )
 }
 
 /** Converts an EGP amount into `code` at `rate` EGP per unit. */
@@ -112,20 +125,4 @@ export function fromEgp(egpAmount: number | null | undefined, rate: number): num
   const value = Number(egpAmount ?? 0)
   const safe = Number.isFinite(rate) && rate > 0 ? rate : 1
   return value / safe
-}
-
-/** An EGP amount, formatted in `code` at `rate`. */
-export function convert(
-  egpAmount: number | null | undefined,
-  code: CurrencyCode,
-  rate: number,
-): string {
-  if (code === 'EGP') return money(egpAmount, 'EGP')
-  return money(fromEgp(egpAmount, rate), code)
-}
-
-/** "1 USD = E£48.50" — shown wherever a converted figure appears. */
-export function rateLine(code: CurrencyCode, rate: number): string {
-  if (code === 'EGP') return ''
-  return `1 ${code} = E£${group(rate, 2)}`
 }
