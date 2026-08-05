@@ -213,6 +213,39 @@ export function InvoicesView({
 
   /* ------------------------------ editor ------------------------------ */
 
+  const [loadingEditor, setLoadingEditor] = useState(false)
+
+  /**
+   * Opens the editor with the invoice's real lines.
+   *
+   * The drawer fetches them in the background, so tapping Edit quickly used to
+   * open a draft with none of them. Saving that draft then meant "this invoice
+   * has one line now" — a line added over the top of nothing, and everything
+   * else queued for deletion. The lines are fetched here instead if they are
+   * not already to hand, and the editor waits for them.
+   */
+  const editInvoice = (invoice: InvoiceBalance, items?: InvoiceItem[]) => {
+    if (items?.length) {
+      openEditor(invoice, items)
+      return
+    }
+    setLoadingEditor(true)
+    start(async () => {
+      const { createClient } = await import('@/lib/supabase/client')
+      const { data, error: readError } = await createClient()
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id)
+        .order('sort')
+      setLoadingEditor(false)
+      if (readError) {
+        toast(t('toast.error'), 'error')
+        return
+      }
+      openEditor(invoice, (data ?? []) as unknown as InvoiceItem[])
+    })
+  }
+
   const openEditor = (invoice?: InvoiceBalance, items?: InvoiceItem[]) => {
     setError(null)
     if (invoice) {
@@ -529,9 +562,10 @@ export function InvoicesView({
               {can(PERMISSIONS.invoicesEdit) && detail.status !== 'void' && (
                 <button
                   type="button"
+                  disabled={loadingEditor}
                   onClick={() => {
                     setDetailId(null)
-                    openEditor(detail, detailItems)
+                    editInvoice(detail, detailItems)
                   }}
                   className="ob-btn ob-btn-ghost flex-1"
                 >

@@ -101,7 +101,38 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
     await assertPermission(input.id ? PERMISSIONS.invoicesEdit : PERMISSIONS.invoicesCreate)
 
     if (!input.clientName.trim()) return { ok: false, error: 'Who is this invoice for?' }
-    const items = input.items.filter((i) => i.description.trim() && i.qty > 0)
+
+    /*
+     * A line is only thrown away when there is nothing on it at all — the
+     * empty row a new invoice starts with, or one somebody opened and left.
+     *
+     * Anything with a price, a quantity or a heading on it is a line somebody
+     * was in the middle of writing. Dropping those quietly and then reporting
+     * "Invoice saved" is how a line you just added disappears without a word,
+     * so say which one needs a name instead.
+     */
+    const untouched = (i: InvoiceItemInput) =>
+      !i.description.trim() &&
+      !i.detail?.trim() &&
+      !i.section?.trim() &&
+      !i.unitPrice &&
+      (!i.qty || i.qty <= 1)
+
+    // Numbered as the editor numbers them, so "line 4" means the fourth row
+    // on screen rather than the fourth one that survived a filter.
+    const kept = input.items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => !untouched(item))
+
+    const unnamed = kept.find(({ item }) => !item.description.trim())
+    if (unnamed) {
+      return {
+        ok: false,
+        error: `Line ${unnamed.index + 1} needs a description before it can be saved.`,
+      }
+    }
+
+    const items = kept.map(({ item }) => item).filter((i) => i.qty > 0)
     if (!items.length) return { ok: false, error: 'Add at least one line to the invoice.' }
 
     const supabase = await createClient()
