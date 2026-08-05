@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
@@ -7,6 +8,7 @@ import { getSettings } from '@/lib/settings'
 import { getT } from '@/lib/lang-server'
 import { PERMISSIONS } from '@/lib/permissions'
 import { egp, formatDate, usd } from '@/lib/format'
+import { groupInvoiceItems } from '@/lib/invoice-sections'
 import { PrintToolbar } from '@/components/print-toolbar'
 import type { InvoiceBalance, InvoiceItem, Payment } from '@/lib/types'
 
@@ -33,6 +35,7 @@ export default async function InvoicePrintPage({
 
   const items = (itemsRes.data ?? []) as InvoiceItem[]
   const payments = (paymentsRes.data ?? []) as Payment[]
+  const groups = groupInvoiceItems(items)
   const { studio, terms } = await getSettings()
   const { t, lang } = await getT()
 
@@ -96,14 +99,16 @@ export default async function InvoicePrintPage({
                 {invoice.client_address}
               </div>
             )}
+            {/* Each on its own line: `ob-ltr` is inline-block, so putting it
+                on the wrapper ran the phone and the email together. */}
             {invoice.client_phone && (
-              <div className="ob-ltr mt-1 text-[12.5px] font-semibold text-ink/55">
-                {invoice.client_phone}
+              <div className="mt-1 text-[12.5px] font-semibold text-ink/55">
+                <span className="ob-ltr">{invoice.client_phone}</span>
               </div>
             )}
             {invoice.client_email && (
-              <div className="ob-ltr text-[12.5px] font-semibold text-ink/55">
-                {invoice.client_email}
+              <div className="text-[12.5px] font-semibold text-ink/55">
+                <span className="ob-ltr">{invoice.client_email}</span>
               </div>
             )}
           </div>
@@ -145,13 +150,43 @@ export default async function InvoicePrintPage({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-b border-ink/7">
-                <td className="py-3 text-[13px] font-semibold">{item.description}</td>
-                <td className="ob-ltr py-3 text-end text-[13px]">{item.qty}</td>
-                <td className="ob-ltr py-3 text-end text-[13px]">{egp(item.unit_price)}</td>
-                <td className="ob-ltr py-3 text-end text-[13px] font-bold">{egp(item.amount)}</td>
-              </tr>
+            {groups.map((group, gi) => (
+              <Fragment key={group.section ?? `g${gi}`}>
+                {group.section && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="pt-5 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.7px] text-ink/45"
+                    >
+                      {group.section}
+                    </td>
+                    {/* The section's own total, so a long invoice can be read in
+                        four numbers instead of twelve. */}
+                    <td className="ob-ltr pt-5 pb-1.5 text-end text-[10.5px] font-bold text-ink/45">
+                      {egp(group.total)}
+                    </td>
+                  </tr>
+                )}
+                {group.items.map((item) => (
+                  <tr key={item.id} className="border-b border-ink/7">
+                    <td className="py-3 text-[13px] font-semibold">
+                      {item.description}
+                      {item.detail && (
+                        <span className="mt-0.5 block text-[11px] font-medium leading-[1.45] text-ink/50">
+                          {item.detail}
+                        </span>
+                      )}
+                    </td>
+                    <td className="ob-ltr py-3 align-top text-end text-[13px]">{item.qty}</td>
+                    <td className="ob-ltr py-3 align-top text-end text-[13px]">
+                      {egp(item.unit_price)}
+                    </td>
+                    <td className="ob-ltr py-3 align-top text-end text-[13px] font-bold">
+                      {egp(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

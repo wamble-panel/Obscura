@@ -1,7 +1,9 @@
+import { Fragment } from 'react'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { fetchSharedInvoice } from '@/lib/supabase/public'
 import { egp, formatDate, usd } from '@/lib/format'
+import { groupInvoiceItems } from '@/lib/invoice-sections'
 import { Icon } from '@/components/icons'
 import { PrintButton } from './print-button'
 
@@ -47,6 +49,7 @@ export default async function SharedInvoicePage({
 
   const invoice = data.invoice!
   const items = data.items ?? []
+  const groups = groupInvoiceItems(items)
   const payments = data.payments ?? []
   const studio = data.studio ?? { name: 'Obscura Studio', branch: '', usd_rate: 48 }
   const paid = Number(data.paid_amount ?? 0)
@@ -152,15 +155,41 @@ export default async function SharedInvoicePage({
               </tr>
             </thead>
             <tbody>
-              {items.map((item, i) => (
-                <tr key={i} className="border-b border-ink/7">
-                  <td className="py-3 text-[13px] font-semibold">{item.description}</td>
-                  <td className="ob-ltr py-3 text-end text-[13px]">{item.qty}</td>
-                  <td className="ob-ltr py-3 text-end text-[13px]">{egp(item.unit_price)}</td>
-                  <td className="ob-ltr py-3 text-end text-[13px] font-bold">
-                    {egp(item.amount)}
-                  </td>
-                </tr>
+              {groups.map((group, gi) => (
+                <Fragment key={group.section ?? `g${gi}`}>
+                  {group.section && (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="pt-5 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.7px] text-ink/45"
+                      >
+                        {group.section}
+                      </td>
+                      <td className="ob-ltr pt-5 pb-1.5 text-end text-[10.5px] font-bold text-ink/45">
+                        {egp(group.total)}
+                      </td>
+                    </tr>
+                  )}
+                  {group.items.map((item, i) => (
+                    <tr key={i} className="border-b border-ink/7">
+                      <td className="py-3 text-[13px] font-semibold">
+                        {item.description}
+                        {item.detail && (
+                          <span className="mt-0.5 block text-[11px] font-medium leading-[1.45] text-ink/50">
+                            {item.detail}
+                          </span>
+                        )}
+                      </td>
+                      <td className="ob-ltr py-3 align-top text-end text-[13px]">{item.qty}</td>
+                      <td className="ob-ltr py-3 align-top text-end text-[13px]">
+                        {egp(item.unit_price)}
+                      </td>
+                      <td className="ob-ltr py-3 align-top text-end text-[13px] font-bold">
+                        {egp(item.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

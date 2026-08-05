@@ -301,6 +301,17 @@
     unicode-bidi: isolate;
   }
 
+  /*
+   * On a table cell that inline-block is fatal: the cell stops being a cell,
+   * the row loses its columns, and the qty/price/amount of every printed
+   * invoice and statement collapse into each other. Isolation is what these
+   * need, not a display change — the cell keeps the one the table gave it.
+   */
+  td.ob-ltr,
+  th.ob-ltr {
+    display: table-cell;
+  }
+
   .ob-scroll-x {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;

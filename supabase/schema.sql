@@ -962,10 +962,21 @@ create table if not exists public.invoice_items (
   amount      numeric(12,2) not null default 0,
   ref_type    text,                       -- session | rental | project | custom
   ref_id      uuid,
+  -- Free text, like a category. A production invoice reads as "Crew", "Rented
+  -- in", "Transport" rather than one flat run of twelve lines, and grouping is
+  -- the only thing that makes a long invoice legible. Null means ungrouped.
+  section     text,
+  -- The small print under a line: what a package actually contains, which lens,
+  -- which day. Keeps the description short without losing the detail.
+  detail      text,
   sort        int not null default 0,
   created_at  timestamptz not null default now()
 );
 create index if not exists invoice_items_invoice_idx on public.invoice_items(invoice_id);
+
+-- Older databases predate the two columns above.
+alter table public.invoice_items add column if not exists section text;
+alter table public.invoice_items add column if not exists detail  text;
 
 create table if not exists public.payments (
   id          uuid primary key default gen_random_uuid(),
@@ -1337,6 +1348,8 @@ begin
     'items', coalesce((
       select jsonb_agg(jsonb_build_object(
                'description', it.description,
+               'section', it.section,
+               'detail', it.detail,
                'qty', it.qty,
                'unit_price', it.unit_price,
                'amount', it.amount) order by it.sort)

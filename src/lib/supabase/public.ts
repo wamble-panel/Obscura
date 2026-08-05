@@ -33,7 +33,14 @@ export type SharedInvoice = {
     notes: string | null
     terms: string | null
   }
-  items?: { description: string; qty: number; unit_price: number; amount: number }[]
+  items?: {
+    description: string
+    section: string | null
+    detail: string | null
+    qty: number
+    unit_price: number
+    amount: number
+  }[]
   payments?: { amount: number; method: string; paid_at: string }[]
   paid_amount?: number
   studio?: { name: string; branch: string; usd_rate: number }

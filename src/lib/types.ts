@@ -201,6 +201,10 @@ export type InvoiceItem = {
   id: string
   invoice_id: string
   description: string
+  /** Heading this line sits under — "Crew", "Rented in". Null means ungrouped. */
+  section: string | null
+  /** Small print under the description, e.g. what a package contains. */
+  detail: string | null
   qty: number
   unit_price: number
   amount: number
