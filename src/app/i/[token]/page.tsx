@@ -2,9 +2,9 @@ import { Fragment } from 'react'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import { fetchSharedInvoice } from '@/lib/supabase/public'
-import { egp, formatDate, usd } from '@/lib/format'
+import { egp, formatDate } from '@/lib/format'
 import { groupInvoiceItems } from '@/lib/invoice-sections'
-import { convert, rateLine, toCurrencyCode } from '@/lib/currency'
+import { money, toCurrencyCode } from '@/lib/currency'
 import { Icon } from '@/components/icons'
 import { PrintButton } from './print-button'
 
@@ -52,7 +52,10 @@ export default async function SharedInvoicePage({
   const items = data.items ?? []
   const groups = groupInvoiceItems(items)
   const currency = toCurrencyCode(invoice.currency)
-  const fxRate = Number(invoice.fx_rate) || 1
+  const secondAmount =
+    currency !== 'EGP' && invoice.currency_amount != null
+      ? money(Number(invoice.currency_amount), currency)
+      : null
   const payments = data.payments ?? []
   const studio = data.studio ?? { name: 'Obscura Studio', branch: '', usd_rate: 48 }
   const paid = Number(data.paid_amount ?? 0)
@@ -212,19 +215,13 @@ export default async function SharedInvoicePage({
               <span className="text-[13px] font-bold">Total</span>
               <span className="text-end">
                 <b className="ob-ltr block text-[19px]">{egp(invoice.total)}</b>
-                <span className="ob-ltr block text-[12px] font-bold opacity-75">
-                  {currency === 'EGP'
-                    ? usd(invoice.total, studio.usd_rate)
-                    : convert(invoice.total, currency, fxRate)}
-                </span>
+                {secondAmount && (
+                  <span className="ob-ltr block text-[12px] font-bold opacity-75">
+                    {secondAmount}
+                  </span>
+                )}
               </span>
             </div>
-
-            {currency !== 'EGP' && (
-              <p className="ob-ltr mt-1.5 text-end text-[10.5px] font-semibold text-ink/45">
-                {rateLine(currency, fxRate)}
-              </p>
-            )}
 
             {paid > 0 && (
               <>
@@ -265,7 +262,7 @@ export default async function SharedInvoicePage({
           {invoice.notes && (
             <div className="mb-4">
               <div className="ob-label mb-1">Notes</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.notes}
               </p>
             </div>
@@ -273,7 +270,7 @@ export default async function SharedInvoicePage({
           {invoice.terms && (
             <>
               <div className="ob-label mb-1">Terms</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.terms}
               </p>
             </>

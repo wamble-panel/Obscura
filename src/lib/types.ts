@@ -233,8 +233,8 @@ export type Invoice = {
   status: InvoiceStatus
   /** The second currency shown to the client. Amounts above stay in EGP. */
   currency: CurrencyCode
-  /** EGP per one unit of `currency`, frozen the day the invoice was written. */
-  fx_rate: number
+  /** What to print in that currency. Typed by hand; null means show nothing. */
+  currency_amount: number | null
   notes: string | null
   terms: string | null
   share_token: string | null

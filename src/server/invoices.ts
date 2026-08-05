@@ -32,10 +32,12 @@ export type InvoiceInput = {
   issueDate: string
   dueDate?: string | null
   /**
-   * The second currency the client sees. Amounts stay in EGP; this only
-   * changes what is shown next to them. The database stamps the day's rate.
+   * The second currency the client sees, and the figure to print in it.
+   * Amounts stay in EGP; this only changes what is shown beside them, and the
+   * figure is whatever was typed — nothing is worked out from a rate.
    */
   currency?: CurrencyCode
+  currencyAmount?: number | null
   discount: number
   taxRate: number
   notes?: string | null
@@ -70,6 +72,10 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       issue_date: input.issueDate || todayKey(),
       due_date: input.dueDate || addDays(input.issueDate || todayKey(), 14),
       currency: toCurrencyCode(input.currency),
+      currency_amount:
+        toCurrencyCode(input.currency) === 'EGP' || !input.currencyAmount
+          ? null
+          : Math.max(0, input.currencyAmount),
       discount: Math.max(0, input.discount || 0),
       tax_rate: Math.max(0, input.taxRate || 0),
       notes: input.notes?.trim() || null,

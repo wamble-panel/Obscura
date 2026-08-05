@@ -7,9 +7,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getSettings } from '@/lib/settings'
 import { getT } from '@/lib/lang-server'
 import { PERMISSIONS } from '@/lib/permissions'
-import { egp, formatDate, usd } from '@/lib/format'
+import { egp, formatDate } from '@/lib/format'
 import { groupInvoiceItems } from '@/lib/invoice-sections'
-import { convert, rateLine, toCurrencyCode } from '@/lib/currency'
+import { money, toCurrencyCode } from '@/lib/currency'
 import { PrintToolbar } from '@/components/print-toolbar'
 import type { InvoiceBalance, InvoiceItem, Payment } from '@/lib/types'
 
@@ -37,10 +37,13 @@ export default async function InvoicePrintPage({
   const items = (itemsRes.data ?? []) as InvoiceItem[]
   const payments = (paymentsRes.data ?? []) as Payment[]
   const groups = groupInvoiceItems(items)
-  // The currency the client agreed to, at the rate frozen on this invoice —
-  // never today's, or a reprint would disagree with the copy they hold.
+  // The second figure is whatever was typed on this invoice. Nothing here
+  // works one out, so a reprint can never disagree with the client's copy.
   const currency = toCurrencyCode(invoice.currency)
-  const fxRate = Number(invoice.fx_rate) || 1
+  const secondAmount =
+    currency !== 'EGP' && invoice.currency_amount != null
+      ? money(Number(invoice.currency_amount), currency)
+      : null
   const { studio, terms } = await getSettings()
   const { t, lang } = await getT()
 
@@ -214,19 +217,13 @@ export default async function InvoicePrintPage({
               <span className="text-[13px] font-bold">{t('inv.total')}</span>
               <span className="text-end">
                 <b className="ob-ltr block text-[19px]">{egp(invoice.total)}</b>
-                <span className="ob-ltr block text-[12px] font-bold opacity-75">
-                  {currency === 'EGP'
-                    ? usd(invoice.total, studio.usd_rate)
-                    : convert(invoice.total, currency, fxRate)}
-                </span>
+                {secondAmount && (
+                  <span className="ob-ltr block text-[12px] font-bold opacity-75">
+                    {secondAmount}
+                  </span>
+                )}
               </span>
             </div>
-
-            {currency !== 'EGP' && (
-              <p className="ob-ltr mt-1.5 text-end text-[10.5px] font-semibold text-ink/45">
-                {rateLine(currency, fxRate)}
-              </p>
-            )}
 
             {Number(invoice.paid_amount) > 0 && (
               <>
@@ -276,7 +273,7 @@ export default async function InvoicePrintPage({
           {invoice.notes && (
             <div className="mb-4">
               <div className="ob-label mb-1">{t('common.notes')}</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.notes}
               </p>
             </div>
@@ -286,7 +283,7 @@ export default async function InvoicePrintPage({
           {invoice.terms && (
             <>
               <div className="ob-label mb-1">{t('inv.terms')}</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.terms}
               </p>
             </>

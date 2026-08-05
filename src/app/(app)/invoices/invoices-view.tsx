@@ -28,9 +28,9 @@ import { groupInvoiceItems } from '@/lib/invoice-sections'
 import {
   CURRENCIES,
   CURRENCY_CODES,
-  convert,
+  fromEgp,
+  money,
   rateFor,
-  rateLine,
   toCurrencyCode,
   type CurrencyCode,
 } from '@/lib/currency'
@@ -67,6 +67,7 @@ type Draft = {
   issueDate: string
   dueDate: string
   currency: CurrencyCode
+  currencyAmount: string
   discount: number
   taxRate: number
   notes: string
@@ -84,6 +85,7 @@ const emptyDraft = (): Draft => ({
   issueDate: todayKey(),
   dueDate: addDays(todayKey(), 14),
   currency: 'EGP',
+  currencyAmount: '',
   discount: 0,
   taxRate: 0,
   notes: '',
@@ -195,6 +197,8 @@ export function InvoicesView({
         issueDate: invoice.issue_date,
         dueDate: invoice.due_date ?? addDays(invoice.issue_date, 14),
         currency: toCurrencyCode(invoice.currency),
+        currencyAmount:
+          invoice.currency_amount == null ? '' : String(Number(invoice.currency_amount)),
         discount: Number(invoice.discount),
         taxRate: Number(invoice.tax_rate),
         notes: invoice.notes ?? '',
@@ -266,8 +270,6 @@ export function InvoicesView({
     ((Math.max(draftSubtotal - draft.discount, 0) * draft.taxRate) / 100) * 100,
   ) / 100
   const draftTotal = Math.max(draftSubtotal - draft.discount, 0) + draftTax
-  // Today's rate while editing. Once saved, the invoice keeps its own.
-  const draftRate = rateFor(draft.currency, settings.fx)
 
   const submitInvoice = () => {
     setError(null)
@@ -283,6 +285,7 @@ export function InvoicesView({
         issueDate: draft.issueDate,
         dueDate: draft.dueDate,
         currency: draft.currency,
+        currencyAmount: draft.currencyAmount ? Number(draft.currencyAmount) : null,
         discount: draft.discount,
         taxRate: draft.taxRate,
         notes: draft.notes,
@@ -562,19 +565,14 @@ export function InvoicesView({
               <span className="text-[13.5px] font-bold">{t('inv.total')}</span>
               <span className="text-end">
                 <b className="ob-ltr block text-[18px]">{egp(detail.total)}</b>
-                {/* The rate this invoice was written at, not today's. */}
-                {toCurrencyCode(detail.currency) !== 'EGP' && (
+                {/* Exactly the figure that was typed on this invoice. */}
+                {toCurrencyCode(detail.currency) !== 'EGP' && detail.currency_amount != null && (
                   <span className="ob-ltr block text-[11.5px] font-bold opacity-75">
-                    {convert(detail.total, toCurrencyCode(detail.currency), Number(detail.fx_rate) || 1)}
+                    {money(Number(detail.currency_amount), toCurrencyCode(detail.currency))}
                   </span>
                 )}
               </span>
             </div>
-            {toCurrencyCode(detail.currency) !== 'EGP' && (
-              <p className="ob-ltr mt-1.5 text-end text-[11px] font-semibold text-ink/40">
-                {rateLine(toCurrencyCode(detail.currency), Number(detail.fx_rate) || 1)}
-              </p>
-            )}
 
             {Number(detail.paid_amount) > 0 && (
               <div className="mt-2 flex items-center justify-between rounded-[14px] bg-moss/8 px-4 py-3">
@@ -918,9 +916,11 @@ export function InvoicesView({
           </div>
 
           {/*
-            The invoice is always in pounds. This picks a second currency to
-            print beside them, at today's rate — which is stored on the invoice
-            when it saves, so the figure never moves afterwards.
+            The invoice is always in pounds. This prints a second figure beside
+            them — and that figure is typed, not calculated. A studio quotes a
+            round $500, and an amount nobody chose is one nobody can defend
+            when the client queries it. Today's rate is available as a starting
+            point on request, and never applied on its own.
           */}
           <Field label={t('inv.currency')} hint={t('inv.currencyHint')}>
             <div className="flex gap-1.5">
@@ -930,7 +930,13 @@ export function InvoicesView({
                   <button
                     key={code}
                     type="button"
-                    onClick={() => setDraft((d) => ({ ...d, currency: code }))}
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        currency: code,
+                        currencyAmount: code === 'EGP' ? '' : d.currencyAmount,
+                      }))
+                    }
                     data-on={on}
                     className="ob-chip h-10 flex-1 justify-center text-[12.5px]"
                   >
@@ -942,6 +948,40 @@ export function InvoicesView({
             </div>
           </Field>
 
+          {draft.currency !== 'EGP' && (
+            <Field label={`${t('inv.amountIn')} ${draft.currency}`}>
+              <div className="flex items-center gap-2">
+                <span className="ob-ltr w-6 text-[15px] font-extrabold text-ink/45">
+                  {CURRENCIES[draft.currency].symbol}
+                </span>
+                <input
+                  className="ob-input flex-1"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={draft.currencyAmount}
+                  dir="ltr"
+                  onChange={(e) => setDraft((d) => ({ ...d, currencyAmount: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => ({
+                      ...d,
+                      currencyAmount: fromEgp(draftTotal, rateFor(d.currency, settings.fx)).toFixed(2),
+                    }))
+                  }
+                  className="ob-btn ob-btn-ghost h-11 flex-shrink-0 px-3 text-[12px]"
+                  title={t('inv.useRateHint')}
+                >
+                  {t('inv.useRate')}
+                </button>
+              </div>
+            </Field>
+          )}
+
           <div className="rounded-[14px] bg-ink/6 px-4 py-3.5">
             <SummaryRow label={t('inv.subtotal')} value={egp(draftSubtotal)} />
             {draft.taxRate > 0 && (
@@ -951,18 +991,13 @@ export function InvoicesView({
               <span className="text-[13px] font-extrabold">{t('inv.total')}</span>
               <span className="text-end">
                 <b className="ob-ltr block text-[17px]">{egp(draftTotal)}</b>
-                {draft.currency !== 'EGP' && (
+                {draft.currency !== 'EGP' && draft.currencyAmount !== '' && (
                   <span className="ob-ltr block text-[12px] font-bold text-ink/55">
-                    {convert(draftTotal, draft.currency, draftRate)}
+                    {money(Number(draft.currencyAmount) || 0, draft.currency)}
                   </span>
                 )}
               </span>
             </div>
-            {draft.currency !== 'EGP' && (
-              <p className="ob-ltr mt-1.5 text-[11px] font-semibold text-ink/40">
-                {rateLine(draft.currency, draftRate)}
-              </p>
-            )}
           </div>
 
           <Field label={t('common.notes')} hint={t('common.optional')}>

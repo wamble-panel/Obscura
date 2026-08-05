@@ -255,31 +255,34 @@ by hand. If the dot turns red, the crons have stopped and it needs a look.
 
 ---
 
-## Currencies and exchange rates
+## Currencies
 
 Everything the studio earns and spends is in Egyptian pounds, and that does not
-change: every amount in the database is EGP. What an invoice can do is show a
-**second currency alongside** — pick USD or EUR when writing it and the client
-sees both figures.
+change: every amount in the database is EGP. What an invoice can do is print a
+**second figure beside them** — pick USD or EUR when writing it and type the
+amount you have agreed.
 
-The rate used is **frozen onto the invoice** the moment it is written. A printed
-copy and the one on screen must still agree next month, when the market has
-moved, so refreshing the rates never rewrites an invoice that already exists.
+**That figure is typed, never calculated.** A studio quotes a round $500, not
+$452.58, and an amount nobody chose is one nobody can defend when the client
+queries it. Nothing in the app derives a foreign figure on a document a client
+sees. Leave the box empty and the invoice shows pounds only.
 
-Rates come from three free sources, no API key needed, tried in order until one
-answers: `open.er-api.com`, then the `currency-api` mirrors on jsDelivr and
-Cloudflare Pages. A rate outside a believable band is discarded rather than
-stored — a bad number here would be printed on a document a client keeps.
+Exchange rates are kept as a **reference**, not an authority. They are pulled
+daily from three free sources with no API key, tried in order until one answers:
+`open.er-api.com`, then the `currency-api` mirrors on jsDelivr and Cloudflare
+Pages. A rate outside a believable band is discarded rather than stored.
 
 - **Vercel Cron** calls `/api/fx` daily at 05:00 UTC (`vercel.json`). It needs
-  `SUPABASE_SERVICE_ROLE_KEY` to store what it finds; without it the endpoint
-  still reports the rates it fetched, but saves nothing.
-- **Settings → Exchange rates** shows the current numbers, when they were last
-  pulled and from where, with a **Refresh rates** button for when the pound has
-  just moved and an invoice is about to go out. You can also type a rate in by
-  hand, for a rate agreed with a client.
-- If every source is unreachable, the stored rates are left alone. Stale numbers
-  beat none.
+  `SUPABASE_SERVICE_ROLE_KEY` to store what it finds.
+- **Settings → Exchange rates** shows the current numbers, when they were pulled
+  and from where, with a **Refresh rates** button and a field for typing a rate
+  in by hand.
+- In the invoice editor, **Today's rate** fills the amount box from those rates
+  as a starting point. It is a suggestion you can overwrite, and it is the only
+  place a rate ever touches an invoice.
+- The dashboard, finance and projects pages show a rough dollar equivalent from
+  the same rates. That is a sense of scale for internal use — nobody is billed
+  on it.
 
 To add another currency, add it to `CURRENCIES` in `src/lib/currency.ts`, give it
 a plausible band in `src/lib/fx-fetch.ts`, and add it to the `currency` check

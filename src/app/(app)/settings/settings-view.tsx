@@ -498,7 +498,7 @@ export function SettingsView({
                   </span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="ob-ltr text-[12.5px] font-bold text-ink/40">E£</span>
+                  <span className="ob-ltr text-[12.5px] font-bold text-ink/40">EGP</span>
                   <input
                     className="ob-input h-9 w-24 text-end"
                     type="number"

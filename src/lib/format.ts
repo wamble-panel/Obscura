@@ -11,13 +11,26 @@ export function comma(n: number): string {
 
 export function egp(n: number | null | undefined): string {
   const v = Number(n ?? 0)
-  return (v < 0 ? '−' : '') + 'E£' + comma(Math.abs(v))
+  return (v < 0 ? '−' : '') + 'EGP ' + comma(Math.abs(v))
 }
 
+/**
+ * A rough dollar figure for the internal pages — the dashboard, finance and
+ * projects — where it is a sense of scale, not a number anyone is billed on.
+ *
+ * It used to round to whole dollars, so EGP 21,950 read as $457 when it is
+ * $452.58. Nothing a client sees is derived like this any more; an invoice
+ * prints the foreign amount that was typed on it.
+ */
 export function usd(n: number | null | undefined, rate = 48): string {
   const v = Number(n ?? 0)
   const safeRate = rate > 0 ? rate : 48
-  return (v < 0 ? '−' : '') + '$' + comma(Math.abs(v) / safeRate)
+  const value = Math.abs(v) / safeRate
+  return (
+    (v < 0 ? '−' : '') +
+    '$' +
+    value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  )
 }
 
 /** Wraps a value in bidi isolates so numbers read correctly inside Arabic text. */
