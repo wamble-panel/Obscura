@@ -24,7 +24,7 @@ import { Icon } from '@/components/icons'
 import { SharePanel } from '@/components/invoices/share-panel'
 import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, egp, formatDate, todayKey } from '@/lib/format'
-import { groupInvoiceItems } from '@/lib/invoice-sections'
+import { groupInvoiceItems, showsBankDetails } from '@/lib/invoice-sections'
 import {
   CURRENCIES,
   CURRENCY_CODES,
@@ -68,6 +68,8 @@ type Draft = {
   dueDate: string
   currency: CurrencyCode
   currencyAmount: string
+  /** Null follows the studio default in Settings. */
+  showBank: boolean | null
   discount: number
   taxRate: number
   notes: string
@@ -86,6 +88,7 @@ const emptyDraft = (): Draft => ({
   dueDate: addDays(todayKey(), 14),
   currency: 'EGP',
   currencyAmount: '',
+  showBank: null,
   discount: 0,
   taxRate: 0,
   notes: '',
@@ -199,6 +202,7 @@ export function InvoicesView({
         currency: toCurrencyCode(invoice.currency),
         currencyAmount:
           invoice.currency_amount == null ? '' : String(Number(invoice.currency_amount)),
+        showBank: invoice.show_bank ?? null,
         discount: Number(invoice.discount),
         taxRate: Number(invoice.tax_rate),
         notes: invoice.notes ?? '',
@@ -311,6 +315,7 @@ export function InvoicesView({
         dueDate: draft.dueDate,
         currency: draft.currency,
         currencyAmount: draft.currencyAmount ? Number(draft.currencyAmount) : null,
+        showBank: draft.showBank,
         discount: draft.discount,
         taxRate: draft.taxRate,
         notes: draft.notes,
@@ -1028,6 +1033,28 @@ export function InvoicesView({
               </div>
             </Field>
           )}
+
+          {/*
+            Payment details are on by default because most invoices want them.
+            This is for the ones that do not — a client paying cash, or a
+            quotation that is not asking for money yet.
+          */}
+          <label className="flex items-center justify-between gap-3 rounded-[14px] border border-ink/10 px-4 py-3">
+            <span className="min-w-0">
+              <span className="block text-[13px] font-bold">{t('inv.showBank')}</span>
+              <span className="mt-0.5 block text-[11.5px] font-semibold text-ink/50">
+                {draft.showBank === null
+                  ? `${t('inv.showBankDefault')} · ${settings.bank.show_on_invoice ? t('common.yes') : t('common.no')}`
+                  : t('inv.showBankSet')}
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              className="h-5 w-5 flex-shrink-0 accent-[var(--color-ink)]"
+              checked={showsBankDetails(draft.showBank, settings.bank.show_on_invoice)}
+              onChange={(e) => setDraft((d) => ({ ...d, showBank: e.target.checked }))}
+            />
+          </label>
 
           <div className="rounded-[14px] bg-ink/6 px-4 py-3.5">
             <SummaryRow label={t('inv.subtotal')} value={egp(draftSubtotal)} />

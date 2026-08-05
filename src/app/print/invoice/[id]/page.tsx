@@ -8,7 +8,7 @@ import { getSettings } from '@/lib/settings'
 import { getT } from '@/lib/lang-server'
 import { PERMISSIONS } from '@/lib/permissions'
 import { egp, formatDate } from '@/lib/format'
-import { groupInvoiceItems } from '@/lib/invoice-sections'
+import { groupInvoiceItems, showsBankDetails } from '@/lib/invoice-sections'
 import { money, toCurrencyCode } from '@/lib/currency'
 import { PrintToolbar } from '@/components/print-toolbar'
 import type { InvoiceBalance, InvoiceItem, Payment } from '@/lib/types'
@@ -51,7 +51,7 @@ export default async function InvoicePrintPage({
    * Only the fields that were actually filled in — an invoice printing
    * "IBAN: —" looks like something went wrong rather than like a blank.
    */
-  const bankLines = bank.show_on_invoice
+  const bankLines = showsBankDetails(invoice.show_bank, bank.show_on_invoice)
     ? (
         [
           { label: t('settings.bankName'), value: bank.bank_name, ltr: false },

@@ -235,6 +235,8 @@ export type Invoice = {
   currency: CurrencyCode
   /** What to print in that currency. Typed by hand; null means show nothing. */
   currency_amount: number | null
+  /** Print the studio's bank details on this one. Null follows Settings. */
+  show_bank: boolean | null
   notes: string | null
   terms: string | null
   share_token: string | null

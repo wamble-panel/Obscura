@@ -960,6 +960,11 @@ create table if not exists public.invoices (
   currency        text not null default 'EGP'
                   check (currency in ('EGP', 'USD', 'EUR')),
   currency_amount numeric(14,2) check (currency_amount >= 0),
+  -- Whether to print the studio's bank details on this one. Null follows the
+  -- studio default in settings, which is what almost every invoice wants; set
+  -- it to say otherwise for a client who pays in cash, or one who needs the
+  -- account on a document that would normally leave it off.
+  show_bank       boolean,
   notes          text,
   terms          text,
   created_by     uuid references public.profiles(id),
@@ -969,6 +974,7 @@ create table if not exists public.invoices (
 -- Older databases predate presenting an invoice in a second currency.
 alter table public.invoices add column if not exists currency text not null default 'EGP';
 alter table public.invoices add column if not exists currency_amount numeric(14,2);
+alter table public.invoices add column if not exists show_bank boolean;
 do $$ begin
   alter table public.invoices
     add constraint invoices_currency_check check (currency in ('EGP', 'USD', 'EUR'));
@@ -1395,6 +1401,7 @@ begin
       'status', inv.status,
       'currency', inv.currency,
       'currency_amount', inv.currency_amount,
+      'show_bank', inv.show_bank,
       'notes', inv.notes,
       'terms', inv.terms
     ),
@@ -1421,8 +1428,16 @@ begin
       'usd_rate', coalesce((studio->>'usd_rate')::numeric, 48)
     ),
     -- How to pay. The client is being asked for money, so the account details
-    -- have to travel with the link, not sit behind a login they do not have.
-    'bank', coalesce((select value from public.app_settings where key = 'bank'), '{}'::jsonb)
+    -- have to travel with the link, not sit behind a login they do not have —
+    -- unless this invoice, or the studio default, says to leave them off.
+    'bank', case
+      when coalesce(
+             inv.show_bank,
+             coalesce((select (value->>'show_on_invoice')::boolean
+                         from public.app_settings where key = 'bank'), true))
+      then coalesce((select value from public.app_settings where key = 'bank'), '{}'::jsonb)
+      else '{}'::jsonb
+    end
   ) into result;
 
   return result;
