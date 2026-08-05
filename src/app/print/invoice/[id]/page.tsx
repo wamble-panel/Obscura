@@ -273,7 +273,7 @@ export default async function InvoicePrintPage({
           {invoice.notes && (
             <div className="mb-4">
               <div className="ob-label mb-1">{t('common.notes')}</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.notes}
               </p>
             </div>
@@ -283,7 +283,7 @@ export default async function InvoicePrintPage({
           {invoice.terms && (
             <>
               <div className="ob-label mb-1">{t('inv.terms')}</div>
-              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+              <p className="max-w-[520px] whitespace-pre-line text-[12.5px] font-medium leading-relaxed text-ink/65">
                 {invoice.terms}
               </p>
             </>
