@@ -360,7 +360,7 @@
  *  2. Colour. Browsers drop backgrounds when printing, which would turn the
  *     dark total panel into an empty white box.
  *  3. One page. `--print-scale` is measured just before printing (see
- *     print-button.tsx) and applied with `zoom`, which shrinks the layout box
+ *     print-sheet.ts) and applied with `zoom`, which shrinks the layout box
  *     itself — `transform: scale()` only shrinks the picture, and the page
  *     would still break where the untransformed content ran over.
  * ------------------------------------------------------------------------- */

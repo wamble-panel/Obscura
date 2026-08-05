@@ -6,7 +6,7 @@ import { egp, formatDate } from '@/lib/format'
 import { groupInvoiceItems, showsBankDetails } from '@/lib/invoice-sections'
 import { money, toCurrencyCode } from '@/lib/currency'
 import { Icon } from '@/components/icons'
-import { PrintButton } from './print-button'
+import { InvoiceDownload } from '@/components/invoice-download'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,7 +83,45 @@ export default async function SharedInvoicePage({
             {studio.name}
             {studio.branch ? ` · ${studio.branch}` : ''}
           </span>
-          <PrintButton />
+          <InvoiceDownload
+            filename={`${invoice.number}.pdf`}
+            payload={{
+              invoice: {
+                number: invoice.number,
+                status: invoice.status === 'paid' ? 'Paid' : balance > 0 ? 'Due' : 'Issued',
+                client_name: invoice.client_name,
+                client_company: invoice.client_company,
+                client_address: invoice.client_address,
+                issue_date: invoice.issue_date,
+                due_date: invoice.due_date,
+                subtotal: Number(invoice.subtotal),
+                discount: Number(invoice.discount),
+                tax_rate: Number(invoice.tax_rate),
+                tax_amount: Number(invoice.tax_amount),
+                total: Number(invoice.total),
+                second_amount: secondAmount,
+                notes: invoice.notes,
+                terms: invoice.terms,
+                paid_amount: paid,
+                balance,
+              },
+              items: items.map((i) => ({
+                description: i.description,
+                section: i.section,
+                detail: i.detail,
+                qty: Number(i.qty),
+                unit_price: Number(i.unit_price),
+                amount: Number(i.amount),
+              })),
+              studio: { name: studio.name, branch: studio.branch },
+              bank: bankLines.map((b) => ({ label: b.label, value: String(b.value) })),
+              payments: payments.map((p) => ({
+                paid_at: p.paid_at,
+                method: p.method,
+                amount: Number(p.amount),
+              })),
+            }}
+          />
         </div>
       </div>
 

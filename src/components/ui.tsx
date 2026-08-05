@@ -9,8 +9,10 @@ import {
   useEffect,
   useId,
   useState,
+  useTransition,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { Icon, type IconName } from './icons'
 import { useT } from './lang-provider'
 
@@ -543,12 +545,29 @@ const ToastContext = createContext<ToastContextValue>({ toast: () => {} })
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Toast[]>([])
+  const router = useRouter()
+  const [, startRefresh] = useTransition()
 
-  const toast = useCallback((message: string, tone: 'ok' | 'error' = 'ok') => {
-    const id = Date.now() + Math.random()
-    setItems((prev) => [...prev, { id, message, tone }])
-    setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 2600)
-  }, [])
+  /**
+   * A success toast also re-fetches the page.
+   *
+   * Every one of these follows a server action that changed something.
+   * `revalidatePath` marks the server's cache stale, but the client router
+   * keeps the copy it already has until it is told to go back — so a save
+   * would land in the database and the screen would carry on showing what was
+   * there before. It looked exactly like nothing had saved, on every page in
+   * the app, not only invoices. Refreshing here means it can never be
+   * forgotten at a call site again.
+   */
+  const toast = useCallback(
+    (message: string, tone: 'ok' | 'error' = 'ok') => {
+      const id = Date.now() + Math.random()
+      setItems((prev) => [...prev, { id, message, tone }])
+      setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 2600)
+      if (tone === 'ok') startRefresh(() => router.refresh())
+    },
+    [router],
+  )
 
   return (
     <ToastContext.Provider value={{ toast }}>

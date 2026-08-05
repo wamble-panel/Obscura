@@ -1,11 +1,25 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from './icons'
 import { printOnePage } from '@/lib/print-sheet'
 
-/** Sticky controls that never appear on the printed page. */
-export function PrintToolbar({ title, backHref }: { title: string; backHref: string }) {
+/**
+ * Sticky controls that never appear on the printed page.
+ *
+ * `action` replaces the print button where there is something better to offer
+ * — the invoice sheet hands over a real generated PDF instead.
+ */
+export function PrintToolbar({
+  title,
+  backHref,
+  action,
+}: {
+  title: string
+  backHref: string
+  action?: ReactNode
+}) {
   const router = useRouter()
 
   return (
@@ -19,10 +33,12 @@ export function PrintToolbar({ title, backHref }: { title: string; backHref: str
           <Icon name="chevronLeft" size={16} className="rtl:rotate-180" />
           {title}
         </button>
-        <button type="button" onClick={() => printOnePage()} className="ob-btn ob-btn-primary h-10">
-          <Icon name="download" size={15} />
-          Download PDF
-        </button>
+        {action ?? (
+          <button type="button" onClick={() => printOnePage()} className="ob-btn ob-btn-primary h-10">
+            <Icon name="download" size={15} />
+            Print
+          </button>
+        )}
       </div>
     </div>
   )
