@@ -70,7 +70,7 @@ export default async function SharedInvoicePage({
         </div>
       </div>
 
-      <article className="mx-auto my-6 max-w-[820px] bg-paper p-6 shadow-card print:my-0 print:max-w-none print:p-0 print:shadow-none sm:p-12">
+      <article className="ob-sheet mx-auto my-6 max-w-[820px] bg-paper p-6 shadow-card print:my-0 sm:p-12">
         <header className="flex flex-wrap items-start justify-between gap-6 border-b border-ink/12 pb-7">
           <div>
             <Image

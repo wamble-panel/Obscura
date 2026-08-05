@@ -50,7 +50,7 @@ export default async function InvoicePrintPage({
     <>
       <PrintToolbar title={t('inv.title')} backHref="/invoices" />
 
-      <article className="mx-auto my-6 max-w-[820px] bg-paper p-8 shadow-card print:my-0 print:max-w-none print:p-0 print:shadow-none sm:p-12">
+      <article className="ob-sheet mx-auto my-6 max-w-[820px] bg-paper p-8 shadow-card print:my-0 sm:p-12">
         {/* ---------------- header ---------------- */}
         <header className="flex flex-wrap items-start justify-between gap-6 border-b border-ink/12 pb-7">
           <div>
@@ -281,10 +281,16 @@ export default async function InvoicePrintPage({
               </p>
             </div>
           )}
-          <div className="ob-label mb-1">{t('inv.terms')}</div>
-          <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
-            {invoice.terms || t('inv.termsDefault')}
-          </p>
+          {/* Only what was actually written on this invoice — an invented
+              payment term is a promise nobody at the studio made. */}
+          {invoice.terms && (
+            <>
+              <div className="ob-label mb-1">{t('inv.terms')}</div>
+              <p className="max-w-[520px] text-[12.5px] font-medium leading-relaxed text-ink/65">
+                {invoice.terms}
+              </p>
+            </>
+          )}
           <p className="mt-2 max-w-[520px] text-[12px] font-medium leading-relaxed text-ink/55">
             {terms.invoice_line}
           </p>

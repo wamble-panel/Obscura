@@ -341,3 +341,60 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Saving an invoice as a PDF.
+ *
+ * Three things a client's copy has to get right, none of which the browser
+ * does on its own:
+ *
+ *  1. No URL in the margin. A browser stamps the page address and the date
+ *     into the header and footer — an internal share link printed across a
+ *     document that gets forwarded around. There is no CSS to switch that off
+ *     directly, but there is nowhere to put it when the page has no margins,
+ *     so `@page { margin: 0 }` removes it and the sheet supplies its own
+ *     padding instead.
+ *  2. Colour. Browsers drop backgrounds when printing, which would turn the
+ *     dark total panel into an empty white box.
+ *  3. One page. `--print-scale` is measured just before printing (see
+ *     print-button.tsx) and applied with `zoom`, which shrinks the layout box
+ *     itself — `transform: scale()` only shrinks the picture, and the page
+ *     would still break where the untransformed content ran over.
+ * ------------------------------------------------------------------------- */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ob-sheet {
+    zoom: var(--print-scale, 1);
+    width: var(--print-width, 210mm);
+    padding: var(--print-pad-y, 12mm) var(--print-pad-x, 13mm);
+    margin: 0;
+    max-width: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  /* A page break through the middle of a total or a payments table reads as a
+     mistake, even on the rare invoice too long to fit. */
+  .ob-no-break {
+    break-inside: avoid;
+  }
+
+  /* A hyperlink is dead on paper. The sentence still reads correctly; it just
+     stops pretending to be clickable. */
+  .ob-sheet a {
+    text-decoration: none;
+    color: inherit;
+  }
+}
