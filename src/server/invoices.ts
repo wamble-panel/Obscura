@@ -10,6 +10,10 @@ import type { ActionResult, InvoiceStatus } from '@/lib/types'
 
 export type InvoiceItemInput = {
   description: string
+  /** Heading the line prints under. Null leaves it ungrouped. */
+  section?: string | null
+  /** Small print under the description. */
+  detail?: string | null
   qty: number
   unitPrice: number
   refType?: string | null
@@ -81,6 +85,8 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       items.map((item, index) => ({
         invoice_id: invoiceId,
         description: item.description.trim(),
+        section: item.section?.trim() || null,
+        detail: item.detail?.trim() || null,
         qty: item.qty,
         unit_price: item.unitPrice,
         ref_type: item.refType || null,

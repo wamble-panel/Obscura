@@ -24,6 +24,7 @@ import { Icon } from '@/components/icons'
 import { SharePanel } from '@/components/invoices/share-panel'
 import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, egp, formatDate, todayKey } from '@/lib/format'
+import { groupInvoiceItems } from '@/lib/invoice-sections'
 import {
   deleteInvoice,
   recordPayment,
@@ -189,6 +190,8 @@ export function InvoicesView({
         items: (items ?? []).map((it, i) => ({
           key: `e${i}`,
           description: it.description,
+          section: it.section,
+          detail: it.detail,
           qty: Number(it.qty),
           unitPrice: Number(it.unit_price),
           refType: it.ref_type,
@@ -225,6 +228,10 @@ export function InvoicesView({
         {
           key: `n${Date.now()}${d.items.length}`,
           description: line?.description ?? '',
+          // A new line joins whatever heading the last one is under, so
+          // building a section is one tap per line instead of two.
+          section: line?.section ?? d.items[d.items.length - 1]?.section ?? null,
+          detail: line?.detail ?? null,
           qty: line?.qty ?? 1,
           unitPrice: line?.unitPrice ?? 0,
           refType: line?.refType ?? null,
@@ -485,20 +492,39 @@ export function InvoicesView({
             <div className="mt-4">
               <div className="ob-label mb-2">{t('inv.items')}</div>
               <div className="flex flex-col gap-1">
-                {detailItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-ink/8 px-3.5 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[12.5px] font-bold">{item.description}</div>
-                      <div className="ob-ltr text-[11px] font-semibold text-ink/45">
-                        {item.qty} × {egp(item.unit_price)}
+                {groupInvoiceItems(detailItems).map((group, gi) => (
+                  <div key={group.section ?? `g${gi}`} className="flex flex-col gap-1">
+                    {group.section && (
+                      <div className="mt-2 flex items-baseline justify-between gap-3 px-1 first:mt-0">
+                        <span className="ob-label">{group.section}</span>
+                        <span className="ob-ltr text-[11px] font-bold text-ink/40">
+                          {egp(group.total)}
+                        </span>
                       </div>
-                    </div>
-                    <span className="ob-ltr flex-shrink-0 text-[12.5px] font-extrabold">
-                      {egp(item.amount)}
-                    </span>
+                    )}
+                    {group.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-ink/8 px-3.5 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-[12.5px] font-bold">
+                            {item.description}
+                          </div>
+                          {item.detail && (
+                            <div className="truncate text-[11px] font-medium text-ink/45">
+                              {item.detail}
+                            </div>
+                          )}
+                          <div className="ob-ltr text-[11px] font-semibold text-ink/45">
+                            {item.qty} × {egp(item.unit_price)}
+                          </div>
+                        </div>
+                        <span className="ob-ltr flex-shrink-0 text-[12.5px] font-extrabold">
+                          {egp(item.amount)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -759,14 +785,40 @@ export function InvoicesView({
               </button>
             </div>
 
+            <datalist id="ob-invoice-sections">
+              {[...new Set(draft.items.map((i) => i.section).filter(Boolean))].map((s) => (
+                <option key={s as string} value={s as string} />
+              ))}
+              {['Crew', 'Equipment', 'Rented in', 'Transport', 'Post-production'].map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+
             <div className="flex flex-col gap-2">
               {draft.items.map((item) => (
                 <div key={item.key} className="rounded-[13px] border border-ink/10 p-2.5">
+                  {/* The heading this line prints under. Left blank the line
+                      stays ungrouped, so plain invoices are unchanged. */}
+                  <input
+                    className="ob-input mb-2 h-9 bg-ink/4 text-[12px] font-bold uppercase tracking-[0.5px]"
+                    value={item.section ?? ''}
+                    placeholder={t('inv.section')}
+                    list="ob-invoice-sections"
+                    onChange={(e) =>
+                      updateLine(item.key, { section: e.target.value || null })
+                    }
+                  />
                   <input
                     className="ob-input mb-2 h-10"
                     value={item.description}
                     placeholder={t('inv.description')}
                     onChange={(e) => updateLine(item.key, { description: e.target.value })}
+                  />
+                  <input
+                    className="ob-input mb-2 h-9 text-[12px]"
+                    value={item.detail ?? ''}
+                    placeholder={t('inv.detail')}
+                    onChange={(e) => updateLine(item.key, { detail: e.target.value || null })}
                   />
                   <div className="flex items-center gap-2">
                     <input
