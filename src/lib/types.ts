@@ -1,4 +1,5 @@
 import type { RoleKey } from './permissions'
+import type { CurrencyCode } from './currency'
 
 export type GearStatus = 'in' | 'out' | 'maint'
 export type SessionPackage = 'hourly' | 'half' | 'full'
@@ -230,6 +231,10 @@ export type Invoice = {
   tax_amount: number
   total: number
   status: InvoiceStatus
+  /** The second currency shown to the client. Amounts above stay in EGP. */
+  currency: CurrencyCode
+  /** EGP per one unit of `currency`, frozen the day the invoice was written. */
+  fx_rate: number
   notes: string | null
   terms: string | null
   share_token: string | null

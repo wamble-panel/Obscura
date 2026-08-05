@@ -487,6 +487,15 @@ insert into public.app_settings(key, value) values
   -- The studio's own Terms & Conditions, kept as data so they can be edited in
   -- Settings without a deploy. Rendered as real text on the public /terms page
   -- and referenced from every invoice, rather than living in a flat image.
+  -- Live exchange rates, refreshed by /api/fx (Vercel Cron) or the Refresh
+  -- button in Settings. Each rate is EGP for one unit, so 'USD': 48 means one
+  -- dollar costs forty-eight pounds. Seeded with something sane so an invoice
+  -- is never blank before the first refresh lands.
+  ('fx', jsonb_build_object(
+      'rates', jsonb_build_object('EGP', 1, 'USD', 48, 'EUR', 52),
+      'fetched_at', null,
+      'source', 'default')),
+
   ('terms', jsonb_build_object(
       'heading', 'Terms & Conditions',
       'agree_line', 'By booking a session at OBSCURA you agree to these terms.',
@@ -939,12 +948,30 @@ create table if not exists public.invoices (
   tax_amount     numeric(12,2) not null default 0,
   total          numeric(12,2) not null default 0,
   status         public.invoice_status not null default 'draft',
+  -- Presented in. The amounts above stay in EGP — this is the second currency
+  -- the client sees, and the rate that was true the day the invoice was
+  -- written. Freezing the rate is the whole point: a printed invoice and the
+  -- copy on screen must still agree next month, when the market has moved.
+  currency       text not null default 'EGP'
+                 check (currency in ('EGP', 'USD', 'EUR')),
+  fx_rate        numeric(14,4) not null default 1 check (fx_rate > 0),
   notes          text,
   terms          text,
   created_by     uuid references public.profiles(id),
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
+-- Older databases predate presenting an invoice in a second currency.
+alter table public.invoices add column if not exists currency text not null default 'EGP';
+alter table public.invoices add column if not exists fx_rate numeric(14,4) not null default 1;
+do $$ begin
+  alter table public.invoices
+    add constraint invoices_currency_check check (currency in ('EGP', 'USD', 'EUR'));
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.invoices add constraint invoices_fx_rate_check check (fx_rate > 0);
+exception when duplicate_object then null; end $$;
+
 create index if not exists invoices_client_idx on public.invoices(client_id);
 create index if not exists invoices_status_idx on public.invoices(status);
 create index if not exists invoices_issue_idx  on public.invoices(issue_date desc);
@@ -997,6 +1024,48 @@ create table if not exists public.payments (
 create index if not exists payments_invoice_idx on public.payments(invoice_id);
 create index if not exists payments_client_idx  on public.payments(client_id);
 create index if not exists payments_date_idx    on public.payments(paid_at desc);
+
+/*
+ * Stamps the day's exchange rate onto an invoice.
+ *
+ * Whoever writes the invoice — the editor, the automatic one raised from a
+ * finished booking, or a script — should not have to remember to look the rate
+ * up. Picking a currency is enough; the rate that was true at that moment is
+ * captured here and then left alone, so reprinting the invoice next month
+ * shows the same figure the client agreed to.
+ */
+create or replace function public.stamp_invoice_fx()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_rate numeric;
+begin
+  if new.currency is null or new.currency = 'EGP' then
+    new.currency := 'EGP';
+    new.fx_rate  := 1;
+    return new;
+  end if;
+
+  -- Only reach for a fresh rate when there isn't a deliberate one already:
+  -- on insert without a rate, or when the currency itself has just changed.
+  if tg_op = 'INSERT' and new.fx_rate is distinct from 1 then return new; end if;
+  if tg_op = 'UPDATE'
+     and new.currency = old.currency
+     and new.fx_rate is distinct from old.fx_rate then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and new.currency = old.currency then return new; end if;
+
+  select (value->'rates'->>new.currency)::numeric into v_rate
+    from public.app_settings where key = 'fx';
+
+  if v_rate is not null and v_rate > 0 then
+    new.fx_rate := v_rate;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists invoices_stamp_fx on public.invoices;
+create trigger invoices_stamp_fx before insert or update on public.invoices
+  for each row execute function public.stamp_invoice_fx();
 
 -- Totals are derived from the line items, never from the browser.
 create or replace function public.recalc_invoice(p_invoice uuid)
@@ -1342,6 +1411,8 @@ begin
       'tax_amount', inv.tax_amount,
       'total', inv.total,
       'status', inv.status,
+      'currency', inv.currency,
+      'fx_rate', inv.fx_rate,
       'notes', inv.notes,
       'terms', inv.terms
     ),

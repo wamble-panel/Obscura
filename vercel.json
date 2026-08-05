@@ -6,6 +6,10 @@
     {
       "path": "/api/keepalive",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/fx",
+      "schedule": "0 5 * * *"
     }
   ]
 }

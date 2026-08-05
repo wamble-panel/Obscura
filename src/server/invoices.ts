@@ -6,6 +6,7 @@ import { assertPermission, logEvent } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PERMISSIONS } from '@/lib/permissions'
 import { addDays, todayKey } from '@/lib/format'
+import { toCurrencyCode, type CurrencyCode } from '@/lib/currency'
 import type { ActionResult, InvoiceStatus } from '@/lib/types'
 
 export type InvoiceItemInput = {
@@ -30,6 +31,11 @@ export type InvoiceInput = {
   clientAddress?: string | null
   issueDate: string
   dueDate?: string | null
+  /**
+   * The second currency the client sees. Amounts stay in EGP; this only
+   * changes what is shown next to them. The database stamps the day's rate.
+   */
+  currency?: CurrencyCode
   discount: number
   taxRate: number
   notes?: string | null
@@ -63,6 +69,7 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       client_address: input.clientAddress?.trim() || null,
       issue_date: input.issueDate || todayKey(),
       due_date: input.dueDate || addDays(input.issueDate || todayKey(), 14),
+      currency: toCurrencyCode(input.currency),
       discount: Math.max(0, input.discount || 0),
       tax_rate: Math.max(0, input.taxRate || 0),
       notes: input.notes?.trim() || null,
