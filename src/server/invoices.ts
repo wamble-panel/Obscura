@@ -136,7 +136,6 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       )
       if (result.error) return { ok: false, error: result.error.message }
       result.dropped.forEach((c) => dropped.add(c))
-      await supabase.from('invoice_items').delete().eq('invoice_id', input.id)
     } else {
       const result = await writeTolerantly(header, (row) =>
         supabase.from('invoices').insert(row).select('id').single(),
@@ -145,22 +144,10 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       result.dropped.forEach((c) => dropped.add(c))
       invoiceId = (result.data as unknown as { id: string } | null)?.id
     }
+    if (!invoiceId) return { ok: false, error: 'The invoice could not be saved.' }
 
-    // A single template row decides which columns exist; the rest follow it,
-    // so a long invoice is not twenty round trips of trial and error.
-    const template = {
+    const lineFor = (item: InvoiceItemInput, index: number) => ({
       invoice_id: invoiceId,
-      description: '',
-      section: null as string | null,
-      detail: null as string | null,
-      qty: 1,
-      unit_price: 0,
-      ref_type: null as string | null,
-      ref_id: null as string | null,
-      sort: 0,
-    }
-    const lineFor = (item: (typeof items)[number], index: number) => ({
-      ...template,
       description: item.description.trim(),
       section: item.section?.trim() || null,
       detail: item.detail?.trim() || null,
@@ -171,20 +158,98 @@ export async function saveInvoice(input: InvoiceInput): Promise<ActionResult & {
       sort: index,
     })
 
-    const probe = await writeTolerantly(lineFor(items[0], 0), (row) =>
-      supabase.from('invoice_items').insert(row),
-    )
-    if (probe.error) return { ok: false, error: probe.error.message }
-    probe.dropped.forEach((c) => dropped.add(c))
+    /*
+     * Lines are rewritten in place rather than deleted and re-added.
+     *
+     * Clearing them first looks simpler, but deleting an invoice_items row
+     * needs `invoices.delete` while saving an edit only needs `invoices.edit`
+     * — and row-level security does not raise an error when it refuses a
+     * delete, it just matches nothing. The old lines survived, the new ones
+     * were inserted alongside them, and the save reported success. The invoice
+     * still showed the old price, which is exactly "it didn't save".
+     *
+     * Updating what is already there needs only `invoices.edit`, so the common
+     * case never touches a permission it should not need. It also keeps line
+     * ids stable across an edit.
+     */
+    const { data: existingRows } = await supabase
+      .from('invoice_items')
+      .select('id')
+      .eq('invoice_id', invoiceId)
+      .order('sort')
 
-    if (items.length > 1) {
-      const rest = items.slice(1).map((item, i) => {
-        let row = lineFor(item, i + 1) as Record<string, unknown>
-        for (const column of probe.dropped) row = withoutColumn(row, column)
-        return row
-      })
-      const { error: itemsError } = await supabase.from('invoice_items').insert(rest)
-      if (itemsError) return { ok: false, error: itemsError.message }
+    const existingIds = (existingRows ?? []).map((r) => (r as { id: string }).id)
+    const overlap = Math.min(existingIds.length, items.length)
+
+    // The first line is written on its own so the columns this database
+    // accepts are learned once, rather than on every row.
+    if (overlap > 0) {
+      const probe = await writeTolerantly(lineFor(items[0], 0), (row) =>
+        supabase.from('invoice_items').update(row).eq('id', existingIds[0]),
+      )
+      if (probe.error) return { ok: false, error: probe.error.message }
+      probe.dropped.forEach((c) => dropped.add(c))
+    }
+
+    const strip = (row: Record<string, unknown>) => {
+      let out = row
+      for (const column of dropped) out = withoutColumn(out, column)
+      return out
+    }
+
+    // The rest go together; one round trip's worth of waiting, not seventeen.
+    const rewrites = []
+    for (let i = 1; i < overlap; i++) {
+      rewrites.push(
+        supabase
+          .from('invoice_items')
+          .update(strip(lineFor(items[i], i)))
+          .eq('id', existingIds[i]),
+      )
+    }
+    for (const result of await Promise.all(rewrites)) {
+      if (result.error) return { ok: false, error: result.error.message }
+    }
+
+    // Lines the invoice did not have before.
+    if (items.length > existingIds.length) {
+      const added = items.slice(existingIds.length).map((item, i) =>
+        strip(lineFor(item, existingIds.length + i)),
+      )
+      const probe = await writeTolerantly(added[0], (row) =>
+        supabase.from('invoice_items').insert(row),
+      )
+      if (probe.error) return { ok: false, error: probe.error.message }
+      probe.dropped.forEach((c) => dropped.add(c))
+
+      if (added.length > 1) {
+        const { error } = await supabase
+          .from('invoice_items')
+          .insert(added.slice(1).map(strip))
+        if (error) return { ok: false, error: error.message }
+      }
+    }
+
+    // Lines that were taken off the invoice.
+    if (existingIds.length > items.length) {
+      const surplus = existingIds.slice(items.length)
+      const { error } = await supabase.from('invoice_items').delete().in('id', surplus)
+      if (error) return { ok: false, error: error.message }
+
+      // A refused delete is silent, so check rather than assume. Reporting a
+      // wrong invoice as saved is the one outcome worth failing loudly for.
+      const { data: survivors } = await supabase
+        .from('invoice_items')
+        .select('id')
+        .in('id', surplus)
+
+      if (survivors?.length) {
+        return {
+          ok: false,
+          error:
+            'The lines you removed could not be deleted — your account needs the "delete invoices" permission. Everything else was saved.',
+        }
+      }
     }
 
     touched(invoiceId)
