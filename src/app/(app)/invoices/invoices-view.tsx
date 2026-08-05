@@ -56,6 +56,31 @@ const STATUS_TONE: Record<InvoiceStatus, 'neutral' | 'ink' | 'good' | 'warn'> = 
   void: 'neutral',
 }
 
+/**
+ * A line as the form holds it, with the numbers as text.
+ *
+ * A numeric field bound to a number cannot be emptied: clearing it parses to
+ * NaN, falls back to 0, and 0 is written straight back into the box. You end
+ * up typing around a zero you cannot delete. Text is what a half-typed number
+ * actually is, and it is turned into a number once, on save.
+ */
+type DraftLine = {
+  key: string
+  description: string
+  section: string | null
+  detail: string | null
+  qty: string
+  unitPrice: string
+  refType?: string | null
+  refId?: string | null
+}
+
+/** Blank, a stray minus sign, and "1.2.3" all mean nothing yet. */
+const num = (value: string): number => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 type Draft = {
   id?: string
   clientId: string
@@ -74,7 +99,7 @@ type Draft = {
   taxRate: number
   notes: string
   terms: string
-  items: (InvoiceItemInput & { key: string })[]
+  items: DraftLine[]
 }
 
 const emptyDraft = (): Draft => ({
@@ -93,7 +118,9 @@ const emptyDraft = (): Draft => ({
   taxRate: 0,
   notes: '',
   terms: '',
-  items: [{ key: 'i0', description: '', qty: 1, unitPrice: 0 }],
+  items: [
+    { key: 'i0', description: '', section: null, detail: null, qty: '1', unitPrice: '' },
+  ],
 })
 
 export function InvoicesView({
@@ -212,8 +239,8 @@ export function InvoicesView({
           description: it.description,
           section: it.section,
           detail: it.detail,
-          qty: Number(it.qty),
-          unitPrice: Number(it.unit_price),
+          qty: String(Number(it.qty)),
+          unitPrice: String(Number(it.unit_price)),
           refType: it.ref_type,
           refId: it.ref_id,
         })),
@@ -222,6 +249,9 @@ export function InvoicesView({
       setDraft(emptyDraft())
     }
     setUnbilled({ sessions: [], rentals: [] })
+    // An existing invoice opens as a readable list; a blank one has nothing to
+    // read, so its only line starts open and ready to type into.
+    setOpenLine(invoice ? null : 'i0')
     setEditorOpen(true)
   }
 
@@ -247,11 +277,14 @@ export function InvoicesView({
    * drawn it.
    */
   const [newLineKey, setNewLineKey] = useState<string | null>(null)
+  /** Only one line is expanded at a time; null means the list is all closed. */
+  const [openLine, setOpenLine] = useState<string | null>(null)
 
-  const addLine = (line?: Partial<InvoiceItemInput>) =>
+  const addLine = (line?: Partial<DraftLine>) =>
     setDraft((d) => {
       const key = `n${Date.now()}${d.items.length}`
       setNewLineKey(key)
+      setOpenLine(key)
       return {
       ...d,
       items: [
@@ -263,8 +296,8 @@ export function InvoicesView({
           // building a section is one tap per line instead of two.
           section: line?.section ?? d.items[d.items.length - 1]?.section ?? null,
           detail: line?.detail ?? null,
-          qty: line?.qty ?? 1,
-          unitPrice: line?.unitPrice ?? 0,
+          qty: line?.qty ?? '1',
+          unitPrice: line?.unitPrice ?? '',
           refType: line?.refType ?? null,
           refId: line?.refId ?? null,
         },
@@ -285,7 +318,7 @@ export function InvoicesView({
     setNewLineKey(null)
   }, [newLineKey, draft.items.length])
 
-  const updateLine = (key: string, patch: Partial<InvoiceItemInput>) =>
+  const updateLine = (key: string, patch: Partial<DraftLine>) =>
     setDraft((d) => ({
       ...d,
       items: d.items.map((i) => (i.key === key ? { ...i, ...patch } : i)),
@@ -294,7 +327,7 @@ export function InvoicesView({
   const removeLine = (key: string) =>
     setDraft((d) => ({ ...d, items: d.items.filter((i) => i.key !== key) }))
 
-  const draftSubtotal = draft.items.reduce((s, i) => s + i.qty * i.unitPrice, 0)
+  const draftSubtotal = draft.items.reduce((s, i) => s + num(i.qty) * num(i.unitPrice), 0)
   const draftTax = Math.round(
     ((Math.max(draftSubtotal - draft.discount, 0) * draft.taxRate) / 100) * 100,
   ) / 100
@@ -320,7 +353,17 @@ export function InvoicesView({
         taxRate: draft.taxRate,
         notes: draft.notes,
         terms: draft.terms,
-        items: draft.items,
+        // Text becomes numbers here, once. A line left with a blank quantity
+        // means one of it, not none — dropping it silently would be worse.
+        items: draft.items.map((i) => ({
+          description: i.description,
+          section: i.section,
+          detail: i.detail,
+          qty: num(i.qty) || 1,
+          unitPrice: num(i.unitPrice),
+          refType: i.refType,
+          refId: i.refId,
+        })),
       })
       if (result.ok) {
         toast(result.message ?? t('toast.saved'))
@@ -775,8 +818,8 @@ export function InvoicesView({
                     onClick={() =>
                       addLine({
                         description: `Studio session ${s.code} · ${formatDate(s.date, lang, 'short')}`,
-                        qty: 1,
-                        unitPrice: Number(s.total_amount),
+                        qty: '1',
+                        unitPrice: String(Number(s.total_amount)),
                         refType: 'session',
                         refId: s.id,
                       })
@@ -794,8 +837,8 @@ export function InvoicesView({
                     onClick={() =>
                       addLine({
                         description: `${r.gear_name} rental ${r.code}`,
-                        qty: 1,
-                        unitPrice: Number(r.fee),
+                        qty: '1',
+                        unitPrice: String(Number(r.fee)),
                         refType: 'rental',
                         refId: r.id,
                       })
@@ -851,82 +894,144 @@ export function InvoicesView({
             </datalist>
 
             <div className="flex flex-col gap-2">
-              {draft.items.map((item, index) => (
-                <div
-                  key={item.key}
-                  ref={(el) => {
-                    lineRefs.current.set(item.key, el)
-                  }}
-                  className="rounded-[13px] border border-ink/10 p-2.5"
-                >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="ob-ltr text-[11px] font-extrabold text-ink/35">
-                      {index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(item.key)}
-                      disabled={draft.items.length === 1}
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-ink/12 disabled:opacity-30"
-                      aria-label={t('common.remove')}
+              {draft.items.map((item, index) => {
+                /*
+                 * Five fields per line times seventeen lines is a wall nobody
+                 * can read, let alone edit on a phone. A closed line is one
+                 * scannable row; opening it is a tap, and only one is open at
+                 * a time so the list never grows out from under you.
+                 */
+                const open = openLine === item.key
+                const amount = num(item.qty) * num(item.unitPrice)
+
+                if (!open) {
+                  return (
+                    <div
+                      key={item.key}
+                      ref={(el) => {
+                        lineRefs.current.set(item.key, el)
+                      }}
+                      className="flex items-center gap-2 rounded-[13px] border border-ink/10"
                     >
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </div>
-                  {/* The heading this line prints under. Left blank the line
-                      stays ungrouped, so plain invoices are unchanged. */}
-                  <input
-                    className="ob-input mb-2 h-10 bg-ink/4 text-[12px] font-bold uppercase tracking-[0.5px]"
-                    value={item.section ?? ''}
-                    placeholder={t('inv.section')}
-                    list="ob-invoice-sections"
-                    onChange={(e) =>
-                      updateLine(item.key, { section: e.target.value || null })
-                    }
-                  />
-                  <input
-                    className="ob-input mb-2"
-                    data-line-description
-                    value={item.description}
-                    placeholder={t('inv.description')}
-                    onChange={(e) => updateLine(item.key, { description: e.target.value })}
-                  />
-                  <input
-                    className="ob-input mb-2 h-9 text-[12px]"
-                    value={item.detail ?? ''}
-                    placeholder={t('inv.detail')}
-                    onChange={(e) => updateLine(item.key, { detail: e.target.value || null })}
-                  />
-                  <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOpenLine(item.key)}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 ps-3 text-start"
+                      >
+                        <span className="ob-ltr w-4 flex-shrink-0 text-[11px] font-extrabold text-ink/30">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-bold">
+                            {item.description.trim() || (
+                              <span className="text-ink/35">{t('inv.description')}</span>
+                            )}
+                          </span>
+                          <span className="ob-ltr mt-0.5 block truncate text-[11px] font-semibold text-ink/45">
+                            {item.section ? `${item.section} · ` : ''}
+                            {num(item.qty) || 1} × {egp(num(item.unitPrice))}
+                          </span>
+                        </span>
+                        <span className="ob-ltr flex-shrink-0 text-[12.5px] font-extrabold">
+                          {egp(amount)}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeLine(item.key)}
+                        disabled={draft.items.length === 1}
+                        className="me-2 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-ink/40 disabled:opacity-25"
+                        aria-label={t('common.remove')}
+                      >
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div
+                    key={item.key}
+                    ref={(el) => {
+                      lineRefs.current.set(item.key, el)
+                    }}
+                    className="rounded-[13px] border-2 border-ink/25 bg-paper/60 p-2.5"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="ob-ltr text-[11px] font-extrabold text-ink/35">
+                        {index + 1}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => removeLine(item.key)}
+                          disabled={draft.items.length === 1}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/12 disabled:opacity-30"
+                          aria-label={t('common.remove')}
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOpenLine(null)}
+                          className="ob-btn ob-btn-ghost h-8 px-3 text-[12px]"
+                        >
+                          {t('common.close')}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* The heading this line prints under. Left blank the line
+                        stays ungrouped, so plain invoices are unchanged. */}
                     <input
-                      className="ob-input h-10 w-20"
-                      type="number"
-                      inputMode="decimal"
-                      value={item.qty}
-                      onChange={(e) =>
-                        updateLine(item.key, { qty: Number(e.target.value) || 0 })
-                      }
-                      dir="ltr"
-                      aria-label={t('inv.qty')}
+                      className="ob-input mb-2 h-10 bg-ink/4 text-[12px] font-bold uppercase tracking-[0.5px]"
+                      value={item.section ?? ''}
+                      placeholder={t('inv.section')}
+                      list="ob-invoice-sections"
+                      onChange={(e) => updateLine(item.key, { section: e.target.value || null })}
                     />
-                    <span className="text-ink/30">×</span>
                     <input
-                      className="ob-input h-10 flex-1"
-                      type="number"
-                      inputMode="numeric"
-                      value={item.unitPrice}
-                      onChange={(e) =>
-                        updateLine(item.key, { unitPrice: Number(e.target.value) || 0 })
-                      }
-                      dir="ltr"
-                      aria-label={t('inv.unitPrice')}
+                      className="ob-input mb-2"
+                      data-line-description
+                      value={item.description}
+                      placeholder={t('inv.description')}
+                      onChange={(e) => updateLine(item.key, { description: e.target.value })}
                     />
-                    <span className="ob-ltr flex-shrink-0 text-end text-[12.5px] font-extrabold">
-                      {egp(item.qty * item.unitPrice)}
-                    </span>
+                    <input
+                      className="ob-input mb-2 h-9 text-[12px]"
+                      value={item.detail ?? ''}
+                      placeholder={t('inv.detail')}
+                      onChange={(e) => updateLine(item.key, { detail: e.target.value || null })}
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        className="ob-input h-11 w-16 text-center"
+                        type="text"
+                        inputMode="decimal"
+                        value={item.qty}
+                        placeholder="1"
+                        onChange={(e) => updateLine(item.key, { qty: e.target.value })}
+                        dir="ltr"
+                        aria-label={t('inv.qty')}
+                      />
+                      <span className="text-ink/30">×</span>
+                      <input
+                        className="ob-input h-11 flex-1"
+                        type="text"
+                        inputMode="decimal"
+                        value={item.unitPrice}
+                        placeholder="0"
+                        onChange={(e) => updateLine(item.key, { unitPrice: e.target.value })}
+                        dir="ltr"
+                        aria-label={t('inv.unitPrice')}
+                      />
+                      <span className="ob-ltr flex-shrink-0 text-end text-[12.5px] font-extrabold">
+                        {egp(amount)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* The one at the top is out of sight by line three. */}
