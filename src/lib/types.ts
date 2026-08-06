@@ -305,6 +305,13 @@ export type PresenceRow = {
 
 export type StudioSettings = {
   name: string
+  /**
+   * The name the studio trades under legally — a person's full name, or a
+   * registered company. Printed above the studio name on an invoice, because
+   * a client's accounts department needs the name that matches the payment.
+   * Blank means the studio name is the only one, which is the common case.
+   */
+  legal_name: string
   branch: string
   currency: string
   usd_rate: number

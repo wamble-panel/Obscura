@@ -6,6 +6,7 @@ import type { BankSettings, PricingSettings, StudioSettings, TermsSettings } fro
 
 export const DEFAULT_STUDIO: StudioSettings = {
   name: 'Obscura Studio',
+  legal_name: '',
   branch: 'Mokattam Branch',
   currency: 'EGP',
   usd_rate: 48,

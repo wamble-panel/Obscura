@@ -66,6 +66,8 @@ export type PdfInvoice = {
 
 export type PdfStudio = {
   name: string
+  /** The registered or full name, printed above the studio name. */
+  legal_name?: string
   branch?: string
   phone?: string
   instagram?: string
@@ -154,13 +156,14 @@ function drawSheet(input: BuildInput, s: number): { doc: jsPDF; bottom: number }
   bold()
   size(9.5)
   ink(INK)
-  doc.text(studio.name, M.x, y + 17 * s)
-  if (studio.branch) {
-    plain()
-    size(8.5)
-    ink(MUTED)
-    doc.text(studio.branch, M.x, y + 21.5 * s)
-  }
+  const legal = studio.legal_name?.trim()
+  doc.text(legal || studio.name, M.x, y + 17 * s)
+  plain()
+  size(8.5)
+  ink(MUTED)
+  // The trading name sits under the legal one when they differ.
+  const under = [legal ? studio.name : null, studio.branch].filter(Boolean) as string[]
+  under.forEach((line, i) => doc.text(line, M.x, y + (21.5 + i * 4) * s))
 
   bold()
   size(20)
@@ -197,14 +200,17 @@ function drawSheet(input: BuildInput, s: number): { doc: jsPDF; bottom: number }
   plain()
   size(8.5)
   ink(MUTED)
-  for (const line of [
+  // An address is written on several lines; each one gets its own.
+  const billedTo = [
     invoice.client_company,
-    invoice.client_address,
+    ...String(invoice.client_address ?? '').split(/\r?\n/),
     invoice.client_phone,
     invoice.client_email,
-  ]) {
-    if (!line) continue
-    doc.text(String(line), M.x, sub)
+  ]
+  for (const line of billedTo) {
+    const text = String(line ?? '').trim()
+    if (!text) continue
+    doc.text(text, M.x, sub)
     sub += 4.2 * s
   }
 

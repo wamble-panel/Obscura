@@ -1424,6 +1424,8 @@ begin
       select sum(amount) from public.payments where invoice_id = inv.id), 0),
     'studio', jsonb_build_object(
       'name', coalesce(studio->>'name', 'Obscura Studio'),
+      -- The name a client's accounts department needs to see.
+      'legal_name', coalesce(studio->>'legal_name', ''),
       'branch', coalesce(studio->>'branch', ''),
       'usd_rate', coalesce((studio->>'usd_rate')::numeric, 48)
     ),
