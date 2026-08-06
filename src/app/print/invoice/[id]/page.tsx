@@ -107,6 +107,7 @@ export default async function InvoicePrintPage({
               })),
               studio: {
                 name: studio.name,
+                legal_name: studio.legal_name,
                 branch: studio.branch,
                 phone: studio.phone,
                 instagram: studio.instagram,
@@ -135,7 +136,12 @@ export default async function InvoicePrintPage({
               className="h-11 w-auto"
             />
             <div className="mt-3 text-[12px] font-semibold leading-relaxed text-ink/55">
-              <div className="text-[13px] font-extrabold text-ink">{studio.name}</div>
+              {/* The name that matches the payment, for a client's accounts
+                  department. Falls back to the studio name when unset. */}
+              <div className="text-[13px] font-extrabold text-ink">
+                {studio.legal_name?.trim() || studio.name}
+              </div>
+              {studio.legal_name?.trim() && <div>{studio.name}</div>}
               <div>{studio.branch}</div>
             </div>
           </div>
@@ -171,8 +177,9 @@ export default async function InvoicePrintPage({
             {invoice.client_company && (
               <div className="text-[13px] font-semibold text-ink/60">{invoice.client_company}</div>
             )}
+            {/* An address is written on several lines, and prints that way. */}
             {invoice.client_address && (
-              <div className="mt-1 max-w-[260px] text-[12.5px] font-medium leading-relaxed text-ink/55">
+              <div className="mt-1 max-w-[260px] whitespace-pre-line text-[12.5px] font-medium uppercase leading-relaxed text-ink/70">
                 {invoice.client_address}
               </div>
             )}

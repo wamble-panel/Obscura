@@ -113,7 +113,11 @@ export default async function SharedInvoicePage({
                 unit_price: Number(i.unit_price),
                 amount: Number(i.amount),
               })),
-              studio: { name: studio.name, branch: studio.branch },
+              studio: {
+                name: studio.name,
+                legal_name: studio.legal_name,
+                branch: studio.branch,
+              },
               bank: bankLines.map((b) => ({ label: b.label, value: String(b.value) })),
               payments: payments.map((p) => ({
                 paid_at: p.paid_at,
@@ -137,7 +141,10 @@ export default async function SharedInvoicePage({
               className="h-10 w-auto sm:h-11"
             />
             <div className="mt-3 text-[12px] font-semibold leading-relaxed text-ink/55">
-              <div className="text-[13px] font-extrabold text-ink">{studio.name}</div>
+              <div className="text-[13px] font-extrabold text-ink">
+                {studio.legal_name?.trim() || studio.name}
+              </div>
+              {studio.legal_name?.trim() && <div>{studio.name}</div>}
               {studio.branch && <div>{studio.branch}</div>}
             </div>
           </div>
@@ -171,7 +178,7 @@ export default async function SharedInvoicePage({
               <div className="text-[13px] font-semibold text-ink/60">{invoice.client_company}</div>
             )}
             {invoice.client_address && (
-              <div className="mt-1 max-w-[260px] text-[12.5px] font-medium leading-relaxed text-ink/55">
+              <div className="mt-1 max-w-[260px] whitespace-pre-line text-[12.5px] font-medium uppercase leading-relaxed text-ink/70">
                 {invoice.client_address}
               </div>
             )}

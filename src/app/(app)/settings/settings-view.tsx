@@ -140,6 +140,15 @@ export function SettingsView({
                 onChange={text(setStudio, studio, 'branch')}
               />
             </Field>
+            <Field label={t('inv.legalName')} hint={t('inv.legalNameHint')}>
+              <input
+                className="ob-input"
+                value={studio.legal_name ?? ''}
+                disabled={!editable}
+                placeholder={studio.name}
+                onChange={text(setStudio, studio, 'legal_name')}
+              />
+            </Field>
             <div className="flex gap-3">
               <Field label={t('settings.currency')} className="flex-1">
                 <input

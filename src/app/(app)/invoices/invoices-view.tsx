@@ -840,6 +840,46 @@ export function InvoicesView({
             )}
           </Field>
 
+          {/*
+            Who the invoice is addressed to, as it should print. A client
+            abroad needs a postal address on the document, and there was
+            nowhere to type one — the draft carried the field but the form
+            never showed it.
+          */}
+          <Field label={t('inv.billedToDetails')} hint={t('common.optional')}>
+            <input
+              className="ob-input mb-2"
+              value={draft.clientCompany}
+              placeholder={t('inv.company')}
+              onChange={(e) => setDraft((d) => ({ ...d, clientCompany: e.target.value }))}
+            />
+            <textarea
+              className="ob-input"
+              rows={2}
+              value={draft.clientAddress}
+              placeholder={t('inv.addressPh')}
+              onChange={(e) => setDraft((d) => ({ ...d, clientAddress: e.target.value }))}
+            />
+            <div className="mt-2 flex gap-2">
+              <input
+                className="ob-input"
+                value={draft.clientPhone}
+                placeholder={t('common.phone')}
+                inputMode="tel"
+                dir="ltr"
+                onChange={(e) => setDraft((d) => ({ ...d, clientPhone: e.target.value }))}
+              />
+              <input
+                className="ob-input"
+                value={draft.clientEmail}
+                placeholder={t('common.email')}
+                inputMode="email"
+                dir="ltr"
+                onChange={(e) => setDraft((d) => ({ ...d, clientEmail: e.target.value }))}
+              />
+            </div>
+          </Field>
+
           {(unbilled.sessions.length > 0 || unbilled.rentals.length > 0) && (
             <div className="rounded-[14px] border border-gold/30 bg-gold/6 p-3.5">
               <div className="ob-label mb-1 text-olive">{t('inv.pullFrom')}</div>

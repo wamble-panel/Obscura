@@ -47,7 +47,7 @@ export type SharedInvoice = {
   }[]
   payments?: { amount: number; method: string; paid_at: string }[]
   paid_amount?: number
-  studio?: { name: string; branch: string; usd_rate: number }
+  studio?: { name: string; legal_name?: string; branch: string; usd_rate: number }
   bank?: Partial<BankSettings>
 }
 
